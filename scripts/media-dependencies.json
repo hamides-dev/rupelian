@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "platform": "windows-x64",
+  "extractor": {
+    "url": "https://github.com/ip7z/7zip/releases/download/26.04/7zr.exe",
+    "sha256": "256feca8e274e5da655e2a284fabafd9f554365eb164862089dacd4e8276d282"
+  },
+  "dependencies": [
+    {
+      "name": "yt-dlp",
+      "version": "2026.08.19",
+      "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp.exe",
+      "format": "exe",
+      "sha256": null,
+      "files": [
+        {
+          "path": "src-tauri/binaries/yt-dlp.exe",
+          "member": "yt-dlp.exe",
+          "sha256": "66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a"
+        }
+      ]
+    },
+    {
+      "name": "deno",
+      "version": "2.9.7",
+      "url": "https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-pc-windows-msvc.zip",
+      "format": "zip",
+      "sha256": null,
+      "files": [
+        {
+          "path": "src-tauri/binaries/deno.exe",
+          "member": "deno.exe",
+          "sha256": "e020f3e232bd16e33768dee528e5983349c962952051ced0a5d58ad42f5d9b33"
+        }
+      ]
+    },
+    {
+      "name": "ffmpeg",
+      "version": "9.0.2-essentials",
+      "url": "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip",
+      "format": "zip",
+      "sha256": null,
+      "files": [
+        {
+          "path": "src-tauri/binaries/ffmpeg.exe",
+          "member": "ffmpeg.exe",
+          "sha256": "3256173f3f8bffd7df12227c68adf68025edb1832273a9530688a7bb1ed8edec"
+        },
+        {
+          "path": "src-tauri/binaries/ffprobe.exe",
+          "member": "ffprobe.exe",
+          "sha256": "f0d36ecbbdd3bcfac3efa078c96c7271c2e68b3810595552ac3b7f17e9a65c52"
+        }
+      ]
+    },
+    {
+      "name": "libmpv-wrapper",
+      "version": "0.1.1",
+      "url": "https://github.com/nini22P/libmpv-wrapper/releases/download/v0.1.1/libmpv-wrapper-windows-x86_64.zip",
+      "format": "zip",
+      "sha256": null,
+      "files": [
+        {
+          "path": "src-tauri/lib/libmpv-wrapper.dll",
+          "member": "libmpv-wrapper.dll",
+          "sha256": "0d5adead5f175c55e0790a80924ec0a2636f72e3675c79a6d9d9568b2ed2384a"
+        }
+      ]
+    },
+    {
+      "name": "libmpv",
+      "version": "2026-10-08-36abaa32d0",
+      "url": "https://github.com/zhongfly/mpv-winbuild/releases/download/2026-10-08-36abaa32d0/mpv-dev-lgpl-x86_64-20261008-git-36abaa32d0.7z",
+      "format": "7z",
+      "sha256": "3f98cfbf1ed976009a25395239be0b2bbc2fee6a15ac9643f7d890079256edbb",
+      "files": [
+        {
+          "path": "src-tauri/lib/libmpv-2.dll",
+          "member": "libmpv-2.dll",
+          "sha256": "5c530bdbfb348c95c77c9cc68e005e64c4acc80c48e9490d5b42ba55a1390408"
+        }
+      ]
+    }
+  ]
+}

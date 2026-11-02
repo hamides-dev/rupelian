@@ -1,0 +1,53 @@
+# Dependencies and generated builds
+node_modules/
+dist/
+target/
+artifacts/
+src-tauri/gen/
+src-tauri/WebView2Runtime/
+.cache/
+.playwright-mcp/
+coverage/
+
+# Runtime dependencies are restored with npm run setup:media.
+*.exe
+*.dll
+*.pdb
+*.lib
+*.exp
+*.sfx
+*.zip
+*.7z
+
+# Local data, credentials, browser profiles, and machine-specific reports
+.env
+.env.*
+!.env.example
+*.local
+*.local.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+**/credentials.json
+**/youtube-session.json
+**/cookies.txt
+**/*cookies*.txt
+**/settings.json
+**/user-data/
+**/webview-data/
+/tests/*.json
+/player-preview.png
+*.log
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini

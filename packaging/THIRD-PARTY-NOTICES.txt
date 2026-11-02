@@ -1,0 +1,48 @@
+Rupelian — Third-Party Notices
+==================================
+
+Portable builds contain the following third-party components under their
+respective licenses. The single-EXE no-WebView build contains no WebView2 runtime
+or installer; it uses the runtime already present on Windows.
+
+* Microsoft Edge WebView2 Fixed Version Runtime (fixed-runtime builds only)
+  https://developer.microsoft.com/microsoft-edge/webview2/
+  Distributed under the Microsoft Software License Terms included with the runtime.
+
+* yt-dlp
+  https://github.com/yt-dlp/yt-dlp
+  The Unlicense: https://github.com/yt-dlp/yt-dlp/blob/master/LICENSE
+
+* Deno
+  https://github.com/denoland/deno
+  MIT License: https://github.com/denoland/deno/blob/main/LICENSE.md
+
+* FFmpeg 9.0.2 essentials build from gyan.dev
+  https://www.gyan.dev/ffmpeg/builds/
+  FFmpeg source: https://ffmpeg.org/download.html
+  This build reports GPL v3 configuration. The corresponding GPL v3 license text
+  is included as binaries/ffmpeg-GPL-3.0.txt.
+
+* libmpv and libmpv-wrapper
+  https://github.com/mpv-player/mpv
+  https://github.com/zhongfly/mpv-winbuild
+  https://github.com/nini22P/libmpv-wrapper
+  The Windows mpv library comes from the LGPL build selected by the plugin setup.
+  See licenses/mpv-Copyright.txt, licenses/mpv-LGPL-2.1.txt and
+  licenses/libmpv-wrapper-MPL-2.0.txt.
+
+* Vulkan Loader 1.3.250
+  https://github.com/KhronosGroup/Vulkan-Loader/tree/v1.3.250
+  See licenses/Vulkan-Loader-1.3.250-LICENSE.txt.
+
+* Microsoft Visual C++ runtime
+  vcruntime140.dll is copied from the installed Visual Studio x64 redistributable
+  directory for application-local deployment, under Microsoft license terms.
+  https://learn.microsoft.com/en-us/cpp/windows/deployment-in-visual-cpp
+
+* LZMA SDK 26.04 (portable payload extraction)
+  https://www.7-zip.org/sdk.html
+  Public-domain 7zr x64 extractor. The Rust bootstrap displays the loading window
+  first, verifies the embedded payload hash, and uses 7zr to populate a reusable
+  per-version cache on first launch. See licenses/LZMA-SDK.txt. No registration,
+  installer, or elevation is required.

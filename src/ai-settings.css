@@ -1,0 +1,6 @@
+.ai-settings { display: grid; gap: 7px; }
+.ai-settings label { display: flex; justify-content: space-between; margin-top: 4px; }
+.ai-settings label small { color: #ff7777; font-weight: 600; }
+.ai-settings .provider-note { margin: 7px 0 2px; color: #aaa; font-size: 10px; line-height: 1.5; }
+.provider-note code { color: #ff7777; }
+.save-provider { margin-top: 6px; border: 1px solid #ff000080; border-radius: 9px; background: #e60000; padding: 10px; color: #fff; font-size: 12px; font-weight: 700; }

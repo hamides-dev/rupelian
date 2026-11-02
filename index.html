@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-[#0f0f0f] text-white antialiased select-none overflow-hidden" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rupelian Player</title>
+<meta name="description" content="Rupelian Player is a desktop video player for language learning with local and YouTube playback, interactive subtitles, vocabulary, and AI translation."/>
+<script>window.__LINGO_BOOT_STARTED_AT__ = performance.now();</script>
+<link as="image" fetchpriority="high" href="/assets/rain-city.jpg" rel="preload"/>
+<link href="/src/reference.css" rel="stylesheet"/>
+<style data-purpose="youtube-styles">
+    html, body { margin: 0; width: 100%; height: 100%; background: #0b0b0c; }
+    #player-stage { background: radial-gradient(circle at 50% 42%, #202024 0%, #111113 42%, #070708 100%); }
+    body.lp-native-video-visible #player-stage { background: transparent; }
+    #startup-shell {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(255, 0, 0, .11), transparent 28%),
+        linear-gradient(145deg, #121214 0%, #09090a 58%, #050506 100%);
+      color: #fff;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    #startup-shell::before {
+      content: "";
+      position: absolute;
+      inset: -35%;
+      background: conic-gradient(from 180deg, transparent, rgba(255, 0, 0, .045), transparent 34%);
+      animation: startup-ambient-spin 8s linear infinite;
+    }
+    .startup-content { position: relative; width: min(310px, 72vw); text-align: center; }
+    .startup-mark {
+      position: relative;
+      width: 58px;
+      height: 42px;
+      margin: 0 auto 18px;
+      border-radius: 14px;
+      background: #f00;
+      box-shadow: 0 0 32px rgba(255, 0, 0, .32), 0 12px 36px rgba(0, 0, 0, .5);
+    }
+    .startup-mark::after {
+      content: "";
+      position: absolute;
+      left: 23px;
+      top: 13px;
+      border-left: 15px solid white;
+      border-top: 8px solid transparent;
+      border-bottom: 8px solid transparent;
+    }
+    .startup-content strong { display: block; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; }
+    .startup-content p { margin: 7px 0 16px; color: #9b9ba2; font-size: 11px; }
+    .startup-progress { position: relative; overflow: hidden; height: 2px; border-radius: 99px; background: rgba(255,255,255,.1); }
+    .startup-progress span {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 42%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, transparent, #f00, #ff5a5a, transparent);
+      animation: startup-progress 1s ease-in-out infinite;
+    }
+    body.lp-shell-ready #startup-shell { opacity: 0; visibility: hidden; pointer-events: none; }
+    @keyframes startup-progress { from { transform: translateX(-115%); } to { transform: translateX(275%); } }
+    @keyframes startup-ambient-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      #startup-shell::before, .startup-progress span { animation: none; }
+      .startup-progress span { left: 29%; }
+    }
+    /* YouTube Native UI Glass & Dark surfaces */
+    .yt-titlebar {
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.75) 75%, transparent 100%);
+    }
+    .yt-dock-gradient {
+      background: linear-gradient(0deg, rgba(0, 0, 0, 0.96) 0%, rgba(0, 0, 0, 0.8) 65%, transparent 100%);
+    }
+    .yt-panel {
+      background: #181818;
+      border: 1px solid #303030;
+    }
+    .yt-thumb {
+      transform: translateX(-50%) scale(1);
+    }
+    .yt-scrub-track:hover .yt-thumb {
+      transform: translateX(-50%) scale(1.35);
+    }
+    .yt-cc-box {
+      background: rgba(8, 8, 8, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #404040;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #FF0000;
+    }
+  </style>
+</head>
+<body class="lp-starting h-full w-full flex flex-col justify-between relative bg-[#0f0f0f] font-sans overflow-hidden select-none group/player">
+<div id="startup-shell" role="status" aria-live="polite" aria-label="Rupelian is starting">
+<div class="startup-content"><div class="startup-mark" aria-hidden="true"></div><strong>Rupelian</strong><p id="startup-status">Preparing your player…</p><div class="startup-progress" aria-hidden="true"><span></span></div></div>
+</div>
+<!-- BEGIN: VideoViewportAndCanvas -->
+<div class="absolute inset-0 z-0 overflow-hidden pointer-events-auto" id="player-stage">
+<img alt="Cinematic Movie Scene - Rain drenched city night" class="w-full h-full object-cover object-center filter brightness-[0.74] contrast-[1.08] saturate-[1.15]" decoding="async" fetchpriority="high" src="/assets/rain-city.jpg"/>
+<!-- YouTube Vignette Gradients for Immersive Cinema Mode -->
+<div class="lp-video-shade lp-video-shade-top absolute top-0 left-0 right-0 pointer-events-none"></div>
+<div class="lp-video-shade lp-video-shade-bottom absolute bottom-0 left-0 right-0 pointer-events-none"></div>
+</div>
+<!-- END: VideoViewportAndCanvas -->
+<!-- TOP SENSING ZONE FOR AUTO-HIDE REVEAL -->
+<div class="absolute top-0 left-0 right-0 h-16 z-30 pointer-events-auto" id="top-sensing-zone"></div>
+<!-- BEGIN: TopHeader (Auto-hides by default, reveals on hover) -->
+<header class="absolute top-0 left-0 right-0 z-40 h-[48px] px-4 flex items-center justify-between w-full yt-titlebar select-none transition-all duration-300 transform -translate-y-full opacity-0 group-hover/player:translate-y-0 group-hover/player:opacity-100 hover:!translate-y-0 hover:!opacity-100 pointer-events-auto" id="top-chrome">
+<!-- Left: YouTube Branding + Title -->
+<div class="flex items-center space-x-3 min-w-0 flex-shrink-0">
+<!-- YouTube Red Play Badge Logo -->
+<div class="flex items-center space-x-2 cursor-pointer group" onclick="openModal('youtube-modal')" title="Connect &amp; Open from YouTube">
+<div class="w-7 h-5 bg-[#FF0000] rounded-lg flex items-center justify-center shadow-yt-red transition-transform group-hover:scale-105">
+<svg class="w-3 h-3 text-white fill-current ml-0.5" viewbox="0 0 24 24">
+<path d="M8 5v14l11-7z"></path>
+</svg>
+</div>
+<div class="flex items-baseline space-x-1">
+<span class="text-xs font-bold tracking-tight text-white uppercase">Rupelian</span>
+
+</div>
+</div>
+<span class="text-slate-500 text-xs font-mono">•</span>
+<!-- Stream Pill -->
+<button class="hidden sm:flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-[#FF0000]/15 hover:bg-[#FF0000]/25 border border-[#FF0000]/40 text-[#FF4E4E] text-[10px] font-medium transition cursor-pointer" onclick="openModal('youtube-modal')" title="Open YouTube">
+<span class="w-1.5 h-1.5 rounded-full bg-[#FF0000] animate-pulse"></span>
+<span class="font-medium text-white">YouTube Stream</span>
+</button>
+</div>
+<!-- Right: YouTube Tools & Windows Controls -->
+<div class="flex items-center space-x-2 flex-shrink-0">
+<!-- Quality Selector Dropdown Trigger -->
+<div class="relative lp-hidden" id="quality-control">
+<button class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#272727] hover:bg-[#383838] border border-[#383838] text-[11px] font-mono text-white transition cursor-pointer" onclick="toggleQualityMenu()" title="Stream Resolution &amp; Bitrate">
+<span class="w-1.5 h-1.5 rounded-full bg-[#FF0000]"></span>
+<span>2160p 4K 60fps</span>
+<svg class="w-2.5 h-2.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M19 9l-7 7-7-7"></path></svg>
+</button>
+<!-- Quality Selector Popover -->
+<div class="absolute right-0 top-full mt-2 w-56 rounded-xl yt-panel p-2 shadow-2xl z-50 text-left hidden" id="quality-flyout">
+<div class="flex items-center justify-between px-2.5 py-1.5 text-[10px] uppercase font-bold tracking-wider text-neutral-400 border-b border-[#303030] mb-1">
+<span>YouTube Video Quality</span>
+<span class="text-[#FF0000] font-mono">HDR</span>
+</div>
+<div class="space-y-1 text-xs">
+<button class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[#FF0000]/20 text-white font-semibold border border-[#FF0000]/40">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#FF0000]"></span>
+<span>2160p 4K 60fps</span>
+</span>
+<span class="text-[9px] font-mono bg-[#FF0000] text-white px-1 rounded font-bold">AV1</span>
+</button>
+<button class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#272727] text-neutral-300 transition">
+<span>1440p QHD 60fps</span>
+<span class="text-[9px] font-mono text-neutral-400">VP9</span>
+</button>
+<button class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#272727] text-neutral-300 transition">
+<span>1080p60 Premium</span>
+<span class="text-[9px] font-mono text-neutral-400">Enhanced Bitrate</span>
+</button>
+<button class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#272727] text-neutral-300 transition border-t border-[#303030] mt-1 pt-1.5">
+<span>Auto (Recommended)</span>
+<span class="text-[9px] text-[#FF4E4E] font-mono">22.4 Mbps</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Shared Library & AI Tutor Drawer Button -->
+<button class="flex items-center space-x-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-gradient-to-r from-[#FF0000]/25 to-[#272727] hover:from-[#FF0000]/40 hover:to-[#383838] border border-[#FF0000]/40 text-white transition cursor-pointer" id="ai-tools-button" onclick="toggleSidebar()" title="Saved Library and AI Tutor">
+<svg class="w-3.5 h-3.5 text-[#FF4E4E]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>AI Tools</span>
+<span class="hidden px-1.5 py-0.2 rounded-full bg-[#FF0000] text-white font-mono text-[9px] font-bold" id="library-header-count">0</span>
+</button>
+<button class="w-8 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-[#272727] transition" id="settings-button" onclick="openSettingsTab('general')" title="Settings">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 00.34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0015 19.4a1.7 1.7 0 00-1 .6 1.7 1.7 0 00-.4 1.1V21h-4v-.1A1.7 1.7 0 008.6 19.4a1.7 1.7 0 00-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 004.6 15a1.7 1.7 0 00-.6-1 1.7 1.7 0 00-1.1-.4H3v-4h.1A1.7 1.7 0 004.6 8.6a1.7 1.7 0 00-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 009 4.6a1.7 1.7 0 001-.6 1.7 1.7 0 00.4-1.1V3h4v.1A1.7 1.7 0 0015.4 4.6a1.7 1.7 0 001.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0019.4 9c.13.38.35.73.66 1 .3.27.69.4 1.1.4H21v4h-.1a1.7 1.7 0 00-1.5.6z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<!-- Windows 11 Native Controls -->
+<div class="flex items-center pl-2 border-l border-[#303030]">
+<button class="w-8 h-7 flex items-center justify-center hover:bg-[#272727] text-neutral-400 hover:text-white transition rounded-sm" title="Minimize">
+<span class="w-2.5 h-[1.2px] bg-current"></span>
+</button>
+<button class="w-8 h-7 flex items-center justify-center hover:bg-[#272727] text-neutral-400 hover:text-white transition rounded-sm" title="Maximize">
+<div class="w-2.5 h-2.5 border border-current rounded-[1px]"></div>
+</button>
+<button class="w-8 h-7 flex items-center justify-center hover:bg-[#FF0000] hover:text-white text-neutral-400 transition rounded-sm" title="Close">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</div>
+</header>
+<!-- END: TopHeader -->
+<!-- BEGIN: InteractiveOverlayArea (Active Subtitles & Floating Dictionary) -->
+<div class="relative z-20 flex-1 flex w-full pt-12 pb-24 px-4 overflow-hidden pointer-events-none" id="interactive-stage">
+<main class="flex-1 flex flex-col justify-end items-center px-2 pb-2 transition-all duration-300">
+<!-- YouTube Dictionary Tooltip Card -->
+<div class="pointer-events-auto mb-3 w-full max-w-sm sm:max-w-md transform transition-all duration-200 ease-out">
+<div class="yt-panel rounded-2xl p-3.5 shadow-2xl border border-[#383838] bg-[#1a1a1a]/95 backdrop-blur-xl">
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center space-x-2">
+<span class="text-xl font-bold font-jp text-white">約束</span>
+<span class="text-xs font-mono text-[#FF4E4E] bg-[#FF0000]/15 px-2 py-0.5 rounded-full border border-[#FF0000]/30">やくそく • yakusoku</span>
+<span class="text-[9px] uppercase font-bold text-white bg-[#272727] px-1.5 py-0.5 rounded border border-[#404040]">JLPT N4</span>
+</div>
+<p class="text-xs font-normal text-neutral-300 mt-1.5 leading-snug">
+              1. Promise; agreement; pledge; pact.<br/>
+              2. Rule; arrangement; convention.
+            </p>
+</div>
+<button class="p-1.5 text-[#FF0000] hover:text-red-400 transition bg-[#272727] rounded-lg hover:bg-[#333333]" onclick="toggleSidebar('vocab')" title="Save to YouTube Library">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24">
+<path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+</svg>
+</button>
+</div>
+<div class="mt-2.5 pt-2 border-t border-[#303030] flex items-center justify-between text-[11px] text-neutral-400">
+<div class="flex items-center space-x-3">
+<span class="hover:text-white cursor-pointer flex items-center gap-1 text-neutral-300">
+<svg class="w-3.5 h-3.5 text-[#FF0000]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              Audio Pronunciation
+            </span>
+<span class="hover:text-[#FF4E4E] cursor-pointer" onclick="toggleSidebar('ai-tutor')">Ask YouTube AI Tutor</span>
+</div>
+<span class="text-neutral-400 font-mono text-[9px]">Freq Core 2K (#1,492)</span>
+</div>
+</div>
+</div>
+<!-- Cinema & YouTube CC Subtitle Display Card -->
+<div class="pointer-events-auto flex flex-col items-center text-center space-y-1.5 max-w-2xl px-6 py-3.5 rounded-2xl yt-cc-box shadow-2xl backdrop-blur-2xl transition hover:border-[#FF0000]/60">
+<!-- Japanese Target Language with Furigana Ruby -->
+<div class="flex flex-wrap items-end justify-center gap-x-1.5 gap-y-1 text-xl sm:text-2xl md:text-3xl font-bold font-jp tracking-wider text-white" style="font-size: clamp(1.25rem, 2.2vw, 1.95rem);">
+<!-- Token 1 -->
+<div class="group relative inline-flex flex-col items-center cursor-pointer transition hover:text-[#FF4E4E]">
+<ruby class="ruby text-white group-hover:text-[#FF4E4E] transition-colors">
+            今夜<rt class="text-[10px] sm:text-[11px] font-normal text-neutral-300 opacity-90 select-none pb-0.5">こんや</rt>
+</ruby>
+</div>
+<span class="text-neutral-300 select-none">の</span>
+<!-- Token 2 (Active Target Highlighted in YouTube Red Outline & Fill) -->
+<div class="group relative inline-flex flex-col items-center cursor-pointer bg-[#FF0000]/25 px-2.5 py-0.5 rounded-lg border border-[#FF0000] shadow-yt-red transition hover:bg-[#FF0000]/35">
+<ruby class="ruby text-white font-extrabold">
+            約束<rt class="text-[10px] sm:text-[11px] font-bold text-[#FF9494] select-none pb-0.5">やくそく</rt>
+</ruby>
+</div>
+<span class="text-neutral-300 select-none">、</span>
+<!-- Token 3 -->
+<div class="group relative inline-flex flex-col items-center cursor-pointer transition hover:text-[#FF4E4E]">
+<ruby class="ruby text-white group-hover:text-[#FF4E4E] transition-colors">
+            覚<rt class="text-[10px] sm:text-[11px] font-normal text-neutral-300 opacity-90 select-none pb-0.5">おぼ</rt>
+</ruby>えているかい？
+        </div>
+</div>
+<!-- English Translation (YouTube High-Legibility Subtitle Style) -->
+<div class="text-xs sm:text-sm md:text-base font-semibold text-white tracking-wide font-sans">
+        "Do you remember the promise we made for tonight?"
+      </div>
+<!-- Action Badges Under Subtitle -->
+<div class="pt-1.5 flex items-center justify-center space-x-2 text-[10px] sm:text-[11px]">
+<button class="px-3 py-1 rounded-full bg-[#272727] hover:bg-[#383838] text-white font-medium transition flex items-center gap-1.5 border border-[#383838] cursor-pointer">
+<svg class="w-3 h-3 text-[#FF0000]" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          Replay Line [R]
+        </button>
+<button class="px-3 py-1 rounded-full bg-[#272727] hover:bg-[#383838] text-white font-medium transition flex items-center gap-1.5 border border-[#383838] cursor-pointer" onclick="toggleSidebar('vocab')">
+<span class="text-[#FF0000]">★</span> Save to Library [S]
+        </button>
+<button class="px-3 py-1 rounded-full bg-[#FF0000]/20 hover:bg-[#FF0000]/30 text-white font-medium transition flex items-center gap-1.5 border border-[#FF0000]/40 cursor-pointer" onclick="openModal('subtitles-dialog')">
+<svg class="w-3 h-3 text-[#FF4E4E]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          AI Translation
+        </button>
+<button class="px-3 py-1 rounded-full bg-[#272727] hover:bg-[#383838] text-white font-medium transition flex items-center gap-1.5 border border-[#383838] cursor-pointer" onclick="toggleSidebar('ai-tutor')">
+<svg class="w-3 h-3 text-[#FF4E4E]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+          Ask Tutor
+        </button>
+</div>
+</div>
+</main>
+</div>
+<!-- END: InteractiveOverlayArea -->
+<!-- Keep the sidebar outside the subtitle stacking context so it can cover player chrome. -->
+<!-- ========================================================================= -->
+<!-- SIDEBAR: YOUTUBE STUDIO VOCABULARY & FLASHCARDS + AI TUTOR AGENT        -->
+<!-- ========================================================================= -->
+<aside aria-hidden="true" class="pointer-events-auto fixed top-12 right-4 bottom-24 w-88 sm:w-[420px] flex flex-col rounded-2xl yt-panel bg-[#141414]/98 border border-[#333333] shadow-2xl z-40 transition-all duration-300 transform translate-x-0 hidden" id="main-sidebar">
+<!-- Sidebar Top Navigation (YouTube Studio Header Style) -->
+<div class="p-3 border-b border-[#2d2d2d] flex items-center justify-between">
+<div class="flex items-center space-x-1.5 bg-[#0f0f0f] p-1 rounded-xl border border-[#2d2d2d]">
+<button class="px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1.5" id="tab-vocab-btn" onclick="switchSidebarTab('vocab')">
+<svg class="w-3.5 h-3.5 text-[#FF0000]" fill="currentColor" viewbox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>
+<span class="text-white">Saved to Library</span>
+</button>
+<button class="px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:text-white transition flex items-center gap-1.5" id="tab-ai-btn" onclick="switchSidebarTab('ai-tutor')">
+<svg class="w-3.5 h-3.5 text-[#FF4E4E]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>AI Tutor</span>
+</button>
+</div>
+<button class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#272727] text-neutral-400 hover:text-white transition cursor-pointer" onclick="closeSidebar()" title="Close Sidebar">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg>
+</button>
+</div>
+<!-- ================= TAB 1: VOCABULARY & FLASHCARDS (YouTube Library Style) ================= -->
+<div class="flex-1 flex flex-col min-h-0" id="vocab-view">
+<!-- Header & Counts -->
+<div class="px-4 pt-3 pb-2">
+<div class="flex items-center justify-between">
+<h2 class="text-base font-bold text-white tracking-tight flex items-center gap-1.5">
+<span>Saved Vocabulary</span>
+<span class="text-[10px] font-mono font-bold bg-[#FF0000] text-white px-2 py-0.2 rounded-full">6 Cards</span>
+</h2>
+<span class="text-[11px] text-neutral-400">Sync with YouTube account</span>
+</div>
+<p class="text-[11px] text-neutral-400 mt-0.5">6 words • 2 phrases • 0 learning • 2 learned</p>
+<!-- Search Box -->
+<div class="mt-2.5 relative">
+<input class="w-full bg-[#1e1e1e] border border-[#333333] rounded-xl py-2 pl-3.5 pr-8 text-xs text-white placeholder-neutral-400 focus:outline-none focus:border-[#FF0000] focus:ring-1 focus:ring-[#FF0000]" placeholder="Search words, sentences, or personal notes..." type="text"/>
+<svg class="w-3.5 h-3.5 text-neutral-400 absolute right-3 top-2.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+</div>
+<!-- YouTube Pill Carousels -->
+<div class="flex items-center gap-1.5 mt-2.5 overflow-x-auto pb-1 text-xs">
+<button class="px-3 py-1 rounded-full bg-[#FF0000] text-white font-bold cursor-pointer shadow-sm">All</button>
+<button class="px-3 py-1 rounded-full bg-[#272727] hover:bg-[#383838] text-neutral-200 border border-[#383838] transition cursor-pointer">Saved</button>
+<button class="px-3 py-1 rounded-full bg-[#272727] hover:bg-[#383838] text-neutral-200 border border-[#383838] transition cursor-pointer">Learning</button>
+<button class="px-3 py-1 rounded-full bg-[#272727] hover:bg-[#383838] text-neutral-200 border border-[#383838] transition cursor-pointer">Learned</button>
+<button class="px-3 py-1 rounded-full bg-[#272727] hover:bg-[#383838] text-neutral-200 border border-[#383838] transition cursor-pointer">Phrases</button>
+</div>
+</div>
+<!-- Scrollable Cards -->
+<div class="flex-1 overflow-y-auto px-4 py-2 space-y-3">
+<!-- Card 1: "pennies" -->
+<div class="p-3.5 rounded-2xl bg-[#1c1c1c] border border-[#303030] hover:border-[#FF0000]/40 transition space-y-2.5 shadow-sm">
+<div class="flex items-start justify-between">
+<div class="flex items-baseline space-x-2">
+<span class="text-sm font-bold text-white">pennies</span>
+<span class="text-[11px] font-mono text-[#FF4E4E] font-semibold bg-[#FF0000]/15 px-1.5 py-0.2 rounded border border-[#FF0000]/30">1×</span>
+</div>
+<span class="px-2 py-0.5 rounded-md border border-[#FF0000]/40 bg-[#FF0000]/15 text-[#FF4E4E] text-[10px] font-bold">Saved Card</span>
+</div>
+<p class="text-xs text-neutral-200 font-normal leading-relaxed">
+      That'll be six pennies, nipper.
+    </p>
+<div class="flex items-center gap-2">
+<div class="flex-1 px-2.5 py-1 rounded-lg bg-[#242424] border border-[#383838] text-[11px] font-mono text-neutral-300 truncate">
+        Cyberpunk: Edgerunners • 08:42
+      </div>
+<button class="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#272727] hover:bg-[#FF0000] text-white border border-[#383838] hover:border-[#FF0000] text-xs font-semibold transition cursor-pointer">
+<span class="font-bold">▶|</span> Jump
+      </button>
+</div>
+<div class="p-2 rounded-xl bg-[#232323] border border-[#353535] text-right text-xs text-neutral-300 font-sans" dir="rtl">
+      سکه‌های جداگانه از pennies استفاده می‌شود.
+    </div>
+<div class="flex items-center justify-between text-[10px] text-neutral-400 pt-0.5">
+<span>Added from YouTube Stream • Today</span>
+<button class="hover:text-[#FF4E4E] transition cursor-pointer">Remove</button>
+</div>
+</div>
+<!-- Card 2: "look" -->
+<div class="p-3.5 rounded-2xl bg-[#1c1c1c] border border-[#303030] hover:border-[#FF0000]/40 transition space-y-2.5 shadow-sm">
+<div class="flex items-start justify-between">
+<div class="flex items-baseline space-x-2">
+<span class="text-sm font-bold text-white">look</span>
+<span class="text-[11px] font-mono text-emerald-400 font-semibold bg-emerald-500/15 px-1.5 py-0.2 rounded border border-emerald-500/30">4×</span>
+</div>
+<span class="px-2 py-0.5 rounded-md border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 text-[10px] font-bold">Learned</span>
+</div>
+<p class="text-xs text-neutral-200 font-normal leading-relaxed">
+      Tommy, look at the book. Just look.
+    </p>
+<div class="flex items-center gap-2">
+<div class="flex-1 px-2.5 py-1 rounded-lg bg-[#242424] border border-[#383838] text-[11px] font-mono text-neutral-300 truncate">
+        Cyberpunk: Edgerunners • 04:15
+      </div>
+<button class="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#272727] hover:bg-[#FF0000] text-white border border-[#383838] hover:border-[#FF0000] text-xs font-semibold transition cursor-pointer">
+<span class="font-bold">▶|</span> Jump
+      </button>
+</div>
+<input class="w-full bg-[#232323] border border-[#353535] rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#FF0000]" placeholder="Add a personal study note..." type="text"/>
+<div class="flex items-center justify-between text-[10px] text-neutral-400 pt-0.5">
+<span>Added 2026-10-05</span>
+<button class="hover:text-[#FF4E4E] transition cursor-pointer">Remove</button>
+</div>
+</div>
+</div>
+</div>
+<!-- ================= TAB 2: YOUTUBE AI TUTOR CO-PILOT ================= -->
+<div class="flex-1 flex flex-col min-h-0 hidden" id="ai-tutor-view">
+<!-- YouTube Studio AI Banner -->
+<div class="p-3 bg-[#1e1e1e] border-b border-[#303030] flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<div class="w-6 h-6 rounded-lg bg-[#FF0000] flex items-center justify-center text-white shadow-yt-red">
+<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"></path></svg>
+</div>
+<div>
+<h3 class="text-xs font-bold text-white">YouTube AI Co-Pilot</h3>
+<p class="text-[10px] text-[#FF4E4E]">Real-time Japanese dialogue breakdown</p>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-[#FF0000]/20 text-[#FF4E4E] text-[9px] font-mono border border-[#FF0000]/40 font-bold">Active Subtitle</span>
+</div>
+<!-- AI Messages Container -->
+<div class="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+<div class="flex items-start space-x-2.5">
+<div class="w-7 h-7 rounded-lg bg-[#FF0000] flex-shrink-0 flex items-center justify-center text-white shadow-sm">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+</div>
+<div class="flex-1 bg-[#1e1e1e] border border-[#333333] rounded-2xl p-3 text-neutral-200 space-y-1.5">
+<p class="leading-relaxed">
+        Currently analyzing caption at 08:42: <strong class="text-white font-jp">今夜の約束、覚えているかい？</strong>
+</p>
+<p class="text-[11px] text-neutral-400 leading-relaxed">
+        The particle <strong class="text-[#FF4E4E]">かい (kai)</strong> is an informal, masculine-leaning question marker used with friends or intimate acquaintances.
+      </p>
+</div>
+</div>
+<div class="flex items-start justify-end space-x-2.5">
+<div class="bg-[#FF0000] text-white rounded-2xl p-3 max-w-[85%] space-y-1 shadow-md font-medium">
+<p class="leading-relaxed">How would a formal YouTube narrator or TV presenter rephrase that line?</p>
+</div>
+</div>
+<div class="flex items-start space-x-2.5">
+<div class="w-7 h-7 rounded-lg bg-[#FF0000] flex-shrink-0 flex items-center justify-center text-white shadow-sm">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+</div>
+<div class="flex-1 bg-[#1e1e1e] border border-[#333333] rounded-2xl p-3 text-neutral-200 space-y-2">
+<p class="leading-relaxed">
+        A broadcast narrator or formal presenter would say: <br/>
+<strong class="text-white font-jp text-sm">「今夜のお約束、覚えていらっしゃいますでしょうか？」</strong>
+</p>
+<div class="p-2 rounded-xl bg-[#282828] border border-[#383838] text-[11px] text-neutral-300">
+<span class="text-[#FF4E4E] font-bold">Key honorifics:</span> お約束 (o-yakusoku) + いらっしゃる (honorific form of いる).
+      </div>
+</div>
+</div>
+</div>
+<!-- Prompt Suggestions & Input -->
+<div class="p-3 border-t border-[#303030] space-y-2 bg-[#121212]">
+<div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[10px]">
+<button class="px-2.5 py-1 rounded-full bg-[#242424] hover:bg-[#333333] text-neutral-200 border border-[#383838] truncate cursor-pointer" onclick="fillAgentPrompt('Break down the grammar and kanji in this sentence')">Grammar breakdown</button>
+<button class="px-2.5 py-1 rounded-full bg-[#242424] hover:bg-[#333333] text-neutral-200 border border-[#383838] truncate cursor-pointer" onclick="fillAgentPrompt('Show informal Japanese anime slang alternatives')">Anime slang forms</button>
+</div>
+<div class="relative">
+<input class="w-full bg-[#1e1e1e] border border-[#333333] rounded-xl py-2 pl-3 pr-10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#FF0000]" id="ai-chat-input" placeholder="Ask AI about Japanese grammar, YouTube slang..." type="text"/>
+<button class="absolute right-1.5 top-1.5 bottom-1.5 px-2.5 bg-[#FF0000] hover:bg-[#CC0000] text-white rounded-lg flex items-center justify-center transition cursor-pointer" title="Send message">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+</button>
+</div>
+</div>
+</div>
+</aside>
+<!-- END: Interactive Sidebar -->
+<!-- BOTTOM SENSING ZONE FOR AUTO-HIDE REVEAL -->
+<div class="absolute bottom-0 left-0 right-0 h-28 z-30 pointer-events-auto" id="bottom-sensing-zone"></div>
+<!-- BEGIN: BottomDockControls (Vibrant YouTube Native Red Controls - Auto hides, reveals on hover) -->
+<footer class="absolute bottom-0 left-0 right-0 z-40 w-full yt-dock-gradient pb-3 pt-6 px-4 transition-all duration-300 transform translate-y-full opacity-0 group-hover/player:translate-y-0 group-hover/player:opacity-100 hover:!translate-y-0 hover:!opacity-100 pointer-events-auto" id="bottom-chrome">
+<div class="max-w-[98%] xl:max-w-7xl mx-auto">
+<!-- YouTube Signature Red Scrubber Bar & Hover Preview -->
+<div class="relative w-full px-1 mb-2 group/scrub">
+<!-- YouTube Thumbnail Preview Tooltip -->
+<div class="absolute -top-26 left-[36%] -translate-x-1/2 hidden group-hover/scrub:flex flex-col items-center pointer-events-none z-30">
+<div class="w-36 h-20 rounded-md overflow-hidden border-2 border-[#FF0000] shadow-2xl bg-black relative">
+<img alt="Thumbnail frame" class="w-full h-full object-cover" src="/assets/scene-thumb.jpg" loading="lazy" decoding="async"/>
+<span class="absolute bottom-1 right-1 px-1 rounded bg-black/90 text-[10px] font-mono font-bold text-white">08:42</span>
+</div>
+</div>
+<!-- YouTube Native Scrubber Track (Red fill, white buffer, dark base) -->
+<div class="relative flex items-center h-4 cursor-pointer yt-scrub-track py-1">
+<div class="w-full h-1 group-hover/scrub:h-1.5 bg-white/20 rounded-full relative overflow-hidden transition-all duration-150">
+<!-- Buffered Track -->
+<div class="absolute top-0 left-0 h-full w-[65%] bg-white/35 rounded-full"></div>
+<!-- YouTube Red Played Progress Track -->
+<div class="absolute top-0 left-0 h-full w-[36%] bg-[#FF0000] rounded-full shadow-yt-red"></div>
+</div>
+<!-- YouTube Chapter Markers -->
+<div class="absolute top-0 bottom-0 left-[20%] w-[2px] h-3 my-auto bg-black rounded-full" title="Chapter 1"></div>
+<div class="absolute top-0 bottom-0 left-[55%] w-[2px] h-3 my-auto bg-black rounded-full" title="Chapter 3"></div>
+<div class="absolute top-0 bottom-0 left-[82%] w-[2px] h-3 my-auto bg-black rounded-full" title="Chapter 4"></div>
+<!-- YouTube Signature Red Thumb Head -->
+<div class="yt-thumb absolute left-[36%] -translate-x-1/2 w-3.5 h-3.5 bg-[#FF0000] rounded-full shadow-yt-red transition-transform duration-100 ease-out flex items-center justify-center">
+<div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+</div>
+</div>
+<!-- Micro Time Display -->
+<div class="flex items-center justify-between text-[11px] font-mono tracking-tight text-neutral-300 px-0.5 mt-0.5">
+<div class="flex items-center space-x-2">
+<span class="text-white font-bold">08:42</span>
+<span class="text-neutral-500">/</span>
+<span class="text-neutral-400">24:18</span>
+<span class="text-[10px] text-white font-sans px-2 py-0.2 rounded-full bg-[#272727] border border-[#383838]">Scene 03: Rainy City</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-neutral-400">-15:36 remaining</span>
+</div>
+</div>
+</div>
+<!-- Primary Player Buttons Row (Authentic YouTube Red Geometries) -->
+<div class="lp-player-controls-row flex items-center justify-between gap-2 mt-1">
+<!-- Left Wing: Open file/stream, Playlist, Volume -->
+<div class="lp-player-controls-left flex items-center space-x-1.5 flex-shrink-0">
+<button class="p-2 rounded-full hover:bg-white/10 active:scale-95 transition text-white cursor-pointer" onclick="openModal('youtube-modal')" title="Open YouTube URL or Local Video">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<button class="hidden sm:inline-flex p-2 rounded-full hover:bg-white/10 text-white active:scale-95 transition" title="YouTube Queue / Chapters">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M4 6h16M4 10h16M4 14h10M4 18h7M18 14v6m0 0l3-3m-3 3l-3-3" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Volume Slider with YouTube Red Indicator -->
+<div class="flex items-center space-x-2 pl-1">
+<button class="p-2 rounded-full hover:bg-white/10 text-white transition" title="Mute/Unmute">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<div class="w-16 lg:w-20 h-1 bg-white/20 rounded-full relative cursor-pointer overflow-hidden">
+<div class="absolute left-0 top-0 h-full w-[78%] bg-[#FF0000] rounded-full shadow-yt-red"></div>
+</div>
+</div>
+</div>
+<!-- Center Wing: Previous, Rewind 5s, Big YouTube Play Button, Forward 5s, Next -->
+<div class="lp-player-controls-center flex items-center">
+<div class="lp-transport-controls flex items-center space-x-2 sm:space-x-3">
+<!-- Prev Sentence [A] -->
+<button class="p-2 rounded-full text-neutral-300 hover:text-white hover:bg-white/10 active:scale-90 transition cursor-pointer" title="Previous Line (A)">
+<svg class="w-5 h-5" fill="currentColor" viewbox="0 0 24 24">
+<path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"></path>
+</svg>
+</button>
+<!-- Rewind 5s -->
+<button class="relative p-2 rounded-full text-neutral-300 hover:text-white hover:bg-white/10 active:scale-90 transition cursor-pointer" title="Rewind 5s">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4z" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="absolute bottom-1 right-1 text-[7px] font-bold text-[#FF4E4E]">5</span>
+</button>
+<!-- Main YouTube Red Play/Pause Button -->
+<button class="relative group/play p-3 rounded-full bg-[#FF0000] hover:bg-[#CC0000] text-white shadow-yt-red active:scale-90 hover:scale-105 transition duration-150 cursor-pointer" title="Play / Pause (Space)">
+<svg class="w-5 h-5 fill-current" viewbox="0 0 24 24">
+<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>
+</svg>
+</button>
+<!-- Forward 5s -->
+<button class="relative p-2 rounded-full text-neutral-300 hover:text-white hover:bg-white/10 active:scale-90 transition cursor-pointer" title="Forward 5s">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M11.934 12.8a1 1 0 000-1.6l-5.334-4A1 1 0 005 8v8a1 1 0 001.6.8l5.334-4z" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M19.934 12.8a1 1 0 000-1.6l-5.334-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.334-4z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="absolute bottom-1 right-1 text-[7px] font-bold text-[#FF4E4E]">5</span>
+</button>
+<!-- Next Sentence [D] -->
+<button class="p-2 rounded-full text-neutral-300 hover:text-white hover:bg-white/10 active:scale-90 transition cursor-pointer" title="Next Line (D)">
+<svg class="w-5 h-5" fill="currentColor" viewbox="0 0 24 24">
+<path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"></path>
+</svg>
+</button>
+</div>
+</div>
+<!-- Right Wing: Speed, YouTube CC Toggle, Fullscreen -->
+<div class="lp-player-controls-right flex items-center space-x-1.5 flex-shrink-0">
+<button class="px-2.5 py-1 rounded-full bg-[#272727] hover:bg-[#383838] border border-[#383838] text-[11px] font-mono font-bold text-white transition" title="Playback Speed">
+          1.0x
+        </button>
+<!-- Audio track trigger and selector -->
+<div class="relative lp-hidden" id="audio-track-control">
+<button class="px-2.5 py-1 rounded-full bg-[#272727] hover:bg-[#383838] border border-[#383838] text-white text-[11px] font-bold transition cursor-pointer flex items-center gap-1.5" id="audio-track-btn" onclick="toggleAudioDropdown()" title="Audio tracks">
+<svg class="w-3.5 h-3.5 text-[#FF4E4E]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M9 18V5l10-2v13M9 9l10-2M6 21c1.657 0 3-1.12 3-2.5S7.657 16 6 16s-3 1.12-3 2.5S4.343 21 6 21zm10-2c1.657 0 3-1.12 3-2.5S17.657 14 16 14s-3 1.12-3 2.5 1.343 2.5 3 2.5z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="lp-audio-button-title hidden xl:inline">Audio</span><span class="font-mono text-[10px]" id="audio-track-button-label">ORIG</span><svg class="w-2.5 h-2.5 transition-transform" id="audio-track-chevron" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M5 15l7-7 7 7"></path></svg>
+</button>
+<div class="absolute right-0 bottom-full mb-3 w-80 yt-panel rounded-2xl p-3.5 shadow-2xl z-50 text-left bg-[#181818]/98 backdrop-blur-2xl border border-[#383838] space-y-3 hidden" id="audio-track-dropdown-menu">
+<div class="flex items-center justify-between pb-2.5 border-b border-[#2d2d2d]"><div class="flex items-center space-x-2"><span class="w-2 h-2 rounded-full bg-[#FF0000] shadow-yt-red"></span><span class="text-xs font-bold text-white uppercase tracking-wider">Audio tracks</span></div><span class="text-[9px] font-mono text-neutral-500" id="audio-track-count"></span></div>
+<div class="space-y-2 max-h-56 overflow-y-auto pr-0.5" id="audio-track-list"></div>
+</div>
+</div>
+<!-- Subtitle trigger and track/settings flyout -->
+<div class="relative">
+<button class="lp-hidden px-3 py-1 rounded-full bg-[#272727] hover:bg-[#383838] border border-[#383838] text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5" id="cc-btn" onclick="toggleSubtitleDropdown()" title="Subtitles &amp; AI Studio">
+<span class="font-mono text-[10px] bg-white/10 px-1 rounded font-black">CC</span><span class="hidden sm:inline text-[11px]" id="cc-button-label">Subtitles</span><svg class="w-2.5 h-2.5 ml-0.5 transition-transform" id="cc-button-chevron" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M5 15l7-7 7 7"></path></svg>
+</button>
+<div class="absolute right-0 bottom-full mb-3 w-80 sm:w-96 yt-panel rounded-2xl p-3.5 shadow-2xl z-50 text-left bg-[#181818]/98 backdrop-blur-2xl border border-[#383838] space-y-3 hidden" id="subtitle-dropdown-menu">
+<div class="flex items-center justify-between pb-2.5 border-b border-[#2d2d2d]"><div class="flex items-center space-x-2"><span class="w-2 h-2 rounded-full bg-[#555]" id="subtitle-status-dot"></span><span class="text-xs font-bold text-white uppercase tracking-wider">Subtitles (CC)</span></div><label class="hidden items-center cursor-pointer select-none" id="subtitle-master-controls"><span class="text-[10px] font-bold text-neutral-300 mr-2 uppercase" id="subtitle-enabled-label">Disabled</span><span class="lp-switch"><input id="subtitle-master-toggle" type="checkbox"/><span></span></span></label></div>
+<div class="space-y-2"><div class="hidden items-center justify-between px-1" id="subtitle-multi-controls"><span class="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Multi-Subtitle Mode</span><label class="flex items-center cursor-pointer text-[10px] text-[#FF4E4E] font-semibold gap-1.5"><input class="rounded bg-[#272727] border-[#444] text-[#FF0000] focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5" id="subtitle-multi-toggle" type="checkbox"/><span id="subtitle-multi-label">Simultaneous OFF</span></label></div><div class="hidden space-y-2 max-h-48 overflow-y-auto pr-0.5" id="subtitle-track-list"></div><div class="p-3 rounded-xl bg-[#1c1c1c] border border-dashed border-[#383838] text-[10px] text-neutral-500 text-center" id="subtitle-empty-state">No subtitle loaded.</div></div>
+<div class="space-y-1.5 pt-1 border-t border-[#2d2d2d]" id="subtitle-load-controls"><span class="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block px-1">Load Subtitle</span><div class="grid grid-cols-1 gap-1.5" id="subtitle-load-grid"><button class="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#242424] hover:bg-[#303030] border border-[#383838] text-neutral-200 hover:text-white text-[11px] font-medium transition" id="load-local-subtitle" type="button"><span class="text-[#FF0000] font-bold text-xs">+</span> Load Local</button><button class="hidden items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#242424] hover:bg-[#303030] border border-[#383838] text-neutral-200 hover:text-white text-[11px] font-medium transition" id="fetch-youtube-cc" type="button"><span class="text-[#FF0000] text-xs">↻</span> YouTube Captions</button></div></div>
+<button class="hidden w-full p-2.5 rounded-xl bg-gradient-to-r from-[#FF0000]/25 via-[#2b1818] to-[#1c1c1c] hover:from-[#FF0000]/35 border border-[#FF0000]/50 hover:border-[#FF0000] items-center justify-between text-left transition shadow-yt-red" id="open-translation-studio" type="button"><span class="flex items-center gap-2.5"><span class="w-7 h-7 rounded-lg bg-[#FF0000] text-white flex items-center justify-center shadow-yt-red">✦</span><span><span class="block text-xs font-bold text-white">AI Subtitle Translation Studio ➜</span><span class="block text-[10px] text-neutral-300">Context-aware batch and live translation</span></span></span><span class="px-2 py-0.5 rounded-md bg-[#FF0000] text-white font-mono font-bold text-[9px]">OPEN</span></button>
+<div class="hidden pt-2 border-t border-[#2d2d2d] items-center justify-between text-[11px] text-neutral-400 px-1" id="subtitle-quick-controls"><div class="flex items-center space-x-1.5"><span>Sync:</span><button class="lp-sub-quick" id="subtitle-sync-minus" type="button">−50ms</button><span class="text-white font-mono text-[10px] px-1" id="subtitle-sync-value">0ms</span><button class="lp-sub-quick" id="subtitle-sync-plus" type="button">+50ms</button></div><div class="flex items-center space-x-1.5"><span>Size:</span><span class="text-white font-semibold" id="subtitle-size-value">100%</span><button class="lp-sub-quick" id="subtitle-size-button" type="button">A+</button></div></div>
+</div>
+</div>
+<!-- Fullscreen Toggle -->
+<button class="p-2 rounded-full hover:bg-white/10 text-white active:scale-95 transition" title="Fullscreen (F)">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</div>
+</div>
+</footer>
+<!-- END: BottomDockControls -->
+<!-- ========================================================================= -->
+<!-- DIALOG 1: SUBTITLES & AI LIVE TRANSLATION MODAL                           -->
+<!-- ========================================================================= -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity duration-150 hidden" id="subtitles-dialog" data-modal-overlay>
+<div class="relative w-full max-w-xl yt-panel rounded-2xl p-6 shadow-2xl bg-[#181818] text-white border border-[#383838] max-h-[92vh] overflow-y-auto">
+<!-- Title Header -->
+<div class="flex items-start justify-between pb-3 border-b border-[#2d2d2d]">
+<div class="flex items-center space-x-2.5">
+<div class="w-8 h-8 rounded-lg bg-[#FF0000] flex items-center justify-center text-white shadow-yt-red">
+<span class="text-xs font-black">CC</span>
+</div>
+<div>
+<h2 class="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">Subtitles &amp; AI Live Translation <span class="text-[9px] font-mono bg-[#FF0000]/20 text-[#FF4E4E] border border-[#FF0000]/30 px-1.5 py-0.5 rounded font-bold uppercase">Pro</span></h2>
+<p class="text-xs text-neutral-400">Translate caption batches with scene and neighboring-line context.</p>
+</div>
+</div>
+<button class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-[#272727] transition cursor-pointer" onclick="closeModal('subtitles-dialog')">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg>
+</button>
+</div>
+<!-- Subtitle sources intentionally live in the CC flyout, not in this translation dialog. -->
+<div class="mt-4 p-4 rounded-xl bg-[#212121] border border-[#333333] space-y-3">
+<div class="flex items-center justify-between gap-3"><span class="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Target Language</span><button class="text-[10px] font-mono text-neutral-400 hover:text-white truncate" id="ai-settings-toggle" onclick="openSettingsTab('ai')" type="button"><span id="translation-engine-summary">OpenRouter · Select model</span> / Provider Settings</button></div>
+<select class="w-full bg-[#161616] border border-[#383838] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#FF0000]" id="translation-target"><option value="Persian (Farsi)" selected>Persian (Farsi) — فارسی</option><option value="English">English — English</option><option value="Spanish">Spanish — Español</option><option value="French">French — Français</option><option value="German">German — Deutsch</option><option value="Japanese">Japanese — 日本語</option><option value="Arabic">Arabic — العربية</option></select>
+</div>
+<!-- Functional AI translation stream -->
+<div class="mt-4 p-4 rounded-xl bg-[#212121] border border-[#333333] space-y-3">
+<div class="flex items-center justify-between gap-3 text-xs"><span class="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Translation Engine Status</span><span class="max-w-[65%] truncate text-right text-neutral-400 font-bold" id="translation-status" title="No subtitle loaded">No subtitle loaded</span></div>
+<div class="w-full bg-[#141414] h-2 rounded-full overflow-hidden"><div class="bg-[#FF0000] h-full rounded-full transition-all duration-300 shadow-yt-red" id="translation-progress" style="width: 0%"></div></div>
+<div class="space-y-0.5"><p class="text-xs text-neutral-200 font-medium" id="translation-progress-label">0 of 0 captions translated</p><p class="text-[10px] font-mono text-neutral-400" id="translation-usage">API usage: 0 requests · 0 tokens</p></div>
+<div class="space-y-2 pt-1"><button class="w-full py-2.5 rounded-xl bg-[#FF0000] hover:bg-[#CC0000] disabled:bg-[#512020] disabled:text-neutral-400 disabled:shadow-none text-white text-xs font-bold shadow-yt-red transition cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2" disabled id="translation-live-button" type="button"><span class="w-2 h-2 rounded-full bg-current"></span><span>Start Live Translation</span></button><div class="grid grid-cols-2 gap-2"><button class="py-2 px-3 rounded-xl bg-[#2b2b2b] hover:bg-[#383838] disabled:opacity-40 text-white border border-[#383838] text-xs font-medium transition cursor-pointer disabled:cursor-not-allowed" disabled id="translate-current-line" type="button">Translate Current Line</button><button class="py-2 px-3 rounded-xl bg-[#2b2b2b] hover:bg-[#383838] disabled:opacity-40 text-white border border-[#383838] text-xs font-medium transition cursor-pointer disabled:cursor-not-allowed" disabled id="translate-entire-subtitle" type="button">Translate Entire Subtitle</button></div></div>
+<p class="text-[10px] text-neutral-400 leading-relaxed pt-1">Full and live translation process captions in batches and give the AI the video title plus up to five neighboring captions on each side.</p>
+</div>
+</div>
+</div>
+<!-- ========================================================================= -->
+<!-- DIALOG 2: PROFESSIONAL SETTINGS                                           -->
+<!-- ========================================================================= -->
+<div class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity duration-150 hidden" id="settings-dialog" data-modal-overlay>
+<div class="relative w-full max-w-4xl yt-panel rounded-2xl shadow-2xl bg-[#151515] text-white border border-[#383838] max-h-[90vh] overflow-hidden flex flex-col">
+<div class="flex items-start justify-between px-6 py-4 border-b border-[#2d2d2d]"><div><h2 class="text-lg font-bold tracking-tight">Settings</h2><p class="text-xs text-neutral-400 mt-0.5">Player behavior, shortcuts, subtitles, and AI providers.</p></div><button class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-[#272727] transition" onclick="closeModal('settings-dialog')"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
+<div class="flex min-h-0 flex-1">
+<nav class="w-44 flex-shrink-0 border-r border-[#2d2d2d] bg-[#111] p-3 space-y-1" aria-label="Settings sections">
+<button class="lp-settings-tab is-active" data-settings-tab="general" type="button">General</button>
+<button class="lp-settings-tab" data-settings-tab="playback" type="button">Playback</button>
+<button class="lp-settings-tab" data-settings-tab="youtube" type="button">YouTube</button>
+<button class="lp-settings-tab" data-settings-tab="shortcuts" type="button">Shortcuts</button>
+<button class="lp-settings-tab" data-settings-tab="subtitles" type="button">Subtitles</button>
+<button class="lp-settings-tab" data-settings-tab="ai" type="button">AI Providers</button>
+<button class="lp-settings-tab" data-settings-tab="prompts" type="button">AI Prompts</button>
+</nav>
+<div class="flex-1 min-w-0 overflow-y-auto p-5 sm:p-6">
+<section class="lp-settings-panel" data-settings-panel="general"><div class="lp-settings-heading"><h3>General</h3><p>Control how the desktop interface behaves.</p></div><div class="lp-settings-card"><label class="lp-settings-row"><span><strong>Player controls auto-hide</strong><small>Choose how long the controls remain visible after pointer activity.</small></span><select id="setting-chrome-delay"><option value="2000">2 seconds</option><option value="3000">3 seconds</option><option value="5000">5 seconds</option><option value="0">Never</option></select></label><div class="lp-settings-row"><span class="min-w-0"><strong>Persistent data folder</strong><small class="break-all" id="setting-data-location">Documents\Rupelian</small></span><span class="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-emerald-300">Survives uninstall</span></div></div></section>
+<section class="lp-settings-panel hidden" data-settings-panel="playback">
+<div class="lp-settings-heading"><h3>Playback</h3><p>Configure seeking and language-learning playback behavior.</p></div>
+<div class="lp-settings-card">
+<label class="lp-settings-row"><span><strong>Seek step</strong><small>Used by the rewind/forward controls and arrow keys.</small></span><select id="setting-seek-seconds"><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option><option value="30">30 seconds</option></select></label>
+<label class="lp-settings-row"><span><strong>Auto-Pause by default</strong><small>Pause automatically at the end of the active subtitle cue.</small></span><span class="lp-switch"><input id="setting-auto-pause" type="checkbox"/><span></span></span></label>
+</div>
+</section>
+<section class="lp-settings-panel hidden" data-settings-panel="youtube">
+<div class="lp-settings-heading"><h3>YouTube</h3><p>Browser access and playback preferences.</p></div>
+<div class="lp-settings-card lp-youtube-session" id="youtube-connection-card">
+<div class="lp-youtube-session-heading"><strong>Browser account</strong><span id="youtube-session-summary">Not connected</span></div>
+<p class="lp-youtube-session-note">Use the YouTube account already signed in in your browser.</p>
+<div class="lp-youtube-actions"><button id="youtube-session-open" data-session-action type="button" class="is-primary">Connect browser</button><button id="youtube-session-cancel" type="button" class="hidden">Cancel</button><button id="youtube-session-remove" data-session-action type="button" class="hidden" disabled>Disconnect</button></div>
+<div id="youtube-sign-in-link-area" class="hidden">
+<div class="lp-youtube-sign-in-link-row"><input id="youtube-sign-in-link" class="lp-youtube-check-url" type="url" readonly spellcheck="false" autocomplete="off" aria-label="Browser connection link"/><button id="youtube-sign-in-copy" type="button">Copy</button><button id="youtube-sign-in-launch" type="button" title="Open in your default browser">Open</button></div>
+</div>
+<p id="youtube-session-status" role="status" aria-live="polite">Public videos need no connection.</p>
+<div id="youtube-session-check-area" class="lp-youtube-check-area hidden">
+<label for="youtube-session-url" class="lp-youtube-check-label">Video access</label>
+<input id="youtube-session-url" class="lp-youtube-check-url" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off"/>
+<div class="lp-youtube-actions"><button id="youtube-session-check" data-session-action type="button" disabled>Check access</button><button id="youtube-session-retry" data-session-action type="button" class="is-primary hidden">Retry video</button></div>
+</div>
+<details class="lp-youtube-session-fallback" id="youtube-session-fallback">
+<summary>Connection options</summary>
+<p class="lp-youtube-session-note">Install the connector once in your signed-in Chrome or Edge profile.</p>
+<div class="lp-youtube-actions"><button id="youtube-browser-extension" data-session-action type="button">Set up connector</button><button id="youtube-session-import" data-session-action type="button">Import cookies.txt</button></div>
+<p id="youtube-browser-extension-path" class="lp-youtube-session-note" style="overflow-wrap:anywhere;user-select:all"></p>
+</details>
+</div>
+<div class="lp-settings-heading lp-settings-subheading"><h3>Playback defaults</h3><p>These choices are applied automatically whenever a new YouTube video starts.</p></div>
+<div class="lp-settings-card">
+<label class="lp-settings-row"><span><strong>Video quality</strong><small>Auto adapts to the window and connection; fixed choices prefer that resolution.</small></span><select id="setting-youtube-quality"><option value="auto">Auto (recommended)</option><option value="best">Best available</option><option value="2160">2160p / 4K</option><option value="1440">1440p</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option><option value="360">360p</option><option value="240">240p</option></select></label>
+<label class="lp-settings-row"><span><strong>Volume</strong><small>Starting volume for each newly opened YouTube video.</small></span><span class="lp-settings-range"><input id="setting-youtube-volume" min="0" max="100" step="5" type="range"/><output id="setting-youtube-volume-value">100%</output></span></label>
+<label class="lp-settings-row"><span><strong>Audio language</strong><small>Select this track automatically for YouTube and local multi-audio videos.</small></span><select id="setting-audio-language"><option value="original">Original / video default</option><option value="en">English</option><option value="fa">Persian (Farsi)</option><option value="ja">Japanese</option><option value="ko">Korean</option><option value="zh">Chinese</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option><option value="pt">Portuguese</option><option value="ar">Arabic</option><option value="hi">Hindi</option><option value="tr">Turkish</option><option value="ru">Russian</option></select></label>
+<label class="lp-settings-row"><span><strong>Caption language</strong><small>Load the preferred YouTube caption automatically when available.</small></span><select id="setting-youtube-caption-language"><option value="auto">Auto / best available</option><option value="off">Off by default</option><option value="en">English</option><option value="fa">Persian (Farsi)</option><option value="ja">Japanese</option><option value="ko">Korean</option><option value="zh">Chinese</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option><option value="pt">Portuguese</option><option value="ar">Arabic</option><option value="hi">Hindi</option><option value="tr">Turkish</option><option value="ru">Russian</option></select></label>
+</div>
+</section>
+<section class="lp-settings-panel hidden" data-settings-panel="shortcuts">
+<div class="lp-settings-heading"><h3>Keyboard Shortcuts</h3><p>Click a shortcut, then press the replacement key combination. Changes are saved with your other persistent settings.</p></div>
+<div class="lp-shortcut-toolbar"><span id="shortcut-settings-status" role="status" aria-live="polite">Ctrl + Y opens YouTube by default.</span><button id="reset-shortcuts" type="button">Restore defaults</button></div>
+<div class="lp-settings-card" id="shortcut-settings-list"></div>
+</section>
+<section class="lp-settings-panel hidden" data-settings-panel="subtitles">
+<div class="lp-settings-heading"><h3>Subtitles</h3><p>Appearance and defaults apply immediately and are remembered for the next launch.</p></div>
+<div class="lp-settings-card">
+<div class="lp-settings-row lp-settings-row-stack"><span><strong>Subtitle style</strong><small>Choose a ready-made style, then customize size and position below.</small></span><div class="lp-subtitle-style-grid" id="setting-subtitle-presets"><button data-subtitle-preset="cinema" type="button"><span class="is-cinema">Cinema</span><small>Glass panel</small></button><button data-subtitle-preset="classic" type="button"><span class="is-classic">Classic</span><small>Outlined text</small></button><button data-subtitle-preset="minimal" type="button"><span class="is-minimal">Minimal</span><small>Soft shadow</small></button><button data-subtitle-preset="contrast" type="button"><span class="is-contrast">Contrast</span><small>Yellow on black</small></button><button data-subtitle-preset="gold" type="button"><span class="is-gold">Golden</span><small>Yellow, no panel</small></button></div></div>
+<div class="lp-settings-row"><span><strong>Subtitle font</strong><small>Choose from the fonts installed on your computer. Each name is previewed in its own typeface.</small></span><div class="lp-system-font-picker" id="subtitle-font-picker"><button class="lp-font-picker-trigger" id="setting-subtitle-font" type="button" aria-expanded="false"><span id="setting-subtitle-font-label">System default</span><span>⌄</span></button><div class="lp-font-picker-menu hidden" id="subtitle-font-menu"><div class="lp-font-picker-tools"><input id="subtitle-font-search" placeholder="Search installed fonts…" spellcheck="false"/><button id="refresh-system-fonts" title="Refresh installed fonts" type="button">↻</button></div><div class="lp-font-picker-list" id="subtitle-font-list"></div><div class="lp-font-picker-custom"><input id="subtitle-font-custom" maxlength="120" placeholder="Or enter an installed font name" spellcheck="false"/><button id="apply-custom-subtitle-font" type="button">Use</button></div><small id="system-font-status">Opening this list reads the fonts installed on your computer.</small></div></div></div>
+<label class="lp-settings-row"><span><strong>Distance from bottom</strong><small>Move subtitles above or closer to the bottom controls.</small></span><span class="lp-settings-range"><input id="setting-subtitle-bottom" min="56" max="260" step="4" type="range"/><output id="setting-subtitle-bottom-value">132px</output></span></label>
+<label class="lp-settings-row"><span><strong>Default subtitle size</strong><small>Scale both primary and secondary subtitle tracks.</small></span><select id="setting-subtitle-size"><option value="80">80%</option><option value="90">90%</option><option value="100">100%</option><option value="110">110%</option><option value="125">125%</option><option value="150">150%</option></select></label>
+<label class="lp-settings-row"><span><strong>Default synchronization</strong><small>Shift subtitle timing relative to the video.</small></span><select id="setting-subtitle-sync"><option value="-250">-250 ms</option><option value="-100">-100 ms</option><option value="-50">-50 ms</option><option value="0">0 ms</option><option value="50">+50 ms</option><option value="100">+100 ms</option><option value="250">+250 ms</option></select></label>
+<label class="lp-settings-row"><span><strong>Multi-Subtitle by default</strong><small>Allow selection of a primary and secondary track together.</small></span><span class="lp-switch"><input id="setting-subtitle-multi" type="checkbox"/><span></span></span></label>
+</div></section>
+<section class="lp-settings-panel hidden" data-settings-panel="ai"><div class="lp-settings-heading"><h3>AI Providers</h3><p>Choose a provider and model. On Windows, API keys are encrypted for your user account and restored automatically.</p></div><div class="lp-settings-card space-y-3">
+<select class="w-full bg-[#161616] border border-[#383838] rounded-lg px-3 py-2 text-[11px] text-white" id="translation-provider"><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option><option value="gemini">Google Gemini</option><option value="anthropic">Anthropic Claude</option><option value="groq">Groq</option><option value="mistral">Mistral AI</option><option value="deepseek">DeepSeek</option><option value="together">Together AI</option><option value="xai">xAI</option><option value="cerebras">Cerebras</option><option value="fireworks">Fireworks AI</option><option value="perplexity">Perplexity</option><option value="ollama">Ollama (Local)</option><option value="custom">Custom OpenAI-compatible</option></select>
+<div class="flex gap-2" id="translation-key-row"><input class="min-w-0 flex-1 bg-[#161616] border border-[#383838] rounded-lg px-3 py-2 text-[11px] text-white font-mono" id="translation-api-key" placeholder="OpenRouter API key — encrypted for this Windows user" type="password" autocomplete="off"/><button class="px-3 py-2 rounded-lg bg-[#2b2b2b] hover:bg-[#383838] border border-[#444] text-[10px] font-bold text-white disabled:opacity-40 whitespace-nowrap" id="translation-model-refresh" type="button">Load Models</button></div>
+<div class="hidden" id="translation-endpoint-row"><input class="w-full bg-[#161616] border border-[#383838] rounded-lg px-3 py-2 text-[11px] text-white font-mono" id="translation-endpoint" placeholder="https://your-provider.example/v1" value="https://api.openai.com/v1"/></div>
+<input id="translation-model" type="hidden" value=""/>
+<button class="hidden w-full text-left text-[9px] text-neutral-500 hover:text-neutral-300 transition" id="translation-manual-toggle" type="button">Can't find the model? Enter its ID manually</button>
+<div class="hidden" id="translation-manual-model-row"><input class="w-full bg-[#161616] border border-[#383838] rounded-lg px-3 py-2 text-[11px] text-white font-mono" id="translation-manual-model" placeholder="Model ID, for example llama3.2"/></div>
+<div class="space-y-2" id="translation-model-browser"><div class="flex items-center gap-2"><input class="min-w-0 flex-1 bg-[#161616] border border-[#383838] rounded-lg px-3 py-2 text-[11px] text-white" id="translation-model-search" placeholder="Search models by name or ID…"/><span class="text-[9px] font-mono text-neutral-500 whitespace-nowrap" id="translation-model-count">Not loaded</span></div><div class="lp-model-catalog" id="translation-model-list"><div class="lp-model-empty">Enter the provider API key to load current models.</div></div></div>
+<div class="lp-selected-model hidden" id="translation-selected-model"><span><strong id="translation-selected-model-name">No model selected</strong><small id="translation-selected-model-id"></small></span><span class="font-mono text-[9px] text-[#FF7A7A]" id="translation-selected-model-price"></span></div>
+</div></section>
+<section class="lp-settings-panel hidden" data-settings-panel="prompts"><div class="lp-settings-heading"><h3>AI Tutor Prompts</h3><p>Customize how the tutor analyzes selected subtitle text and its full sentence context.</p></div><div class="lp-settings-card space-y-3">
+<label class="lp-prompt-field"><span><strong>System prompt</strong><small>Defines the tutor's role for the initial explanation and every follow-up.</small></span><textarea id="setting-ai-system-prompt" rows="5" spellcheck="false"></textarea></label>
+<label class="lp-prompt-field"><span><strong>Initial analysis template</strong><small>Available fields: <code>{kind}</code>, <code>{text}</code>, <code>{context}</code>, <code>{target_language}</code></small></span><textarea id="setting-ai-initial-prompt" rows="7" spellcheck="false"></textarea></label>
+<div class="flex items-center justify-between gap-3"><p class="text-[9px] text-neutral-500 leading-relaxed">Subtitle content is always treated as quoted context, never as instructions.</p><button class="px-3 py-2 rounded-lg bg-[#292929] hover:bg-[#363636] border border-[#414141] text-[10px] font-bold whitespace-nowrap" id="reset-ai-prompts" type="button">Restore defaults</button></div>
+</div></section>
+</div></div></div></div>
+<!-- ========================================================================= -->
+<!-- DIALOG 3: OPEN FROM YOUTUBE / STREAM CONNECT MODAL                        -->
+<!-- ========================================================================= -->
+<div class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity duration-150 hidden" id="resume-dialog" role="dialog" aria-modal="true" aria-labelledby="resume-dialog-title">
+<div class="lp-resume-dialog"><span class="lp-resume-icon" aria-hidden="true">▶</span><div><p>Continue watching?</p><h2 id="resume-dialog-title">Resume video</h2><span id="resume-dialog-time">You stopped at 00:00.</span></div><div class="lp-resume-actions"><button id="resume-start-over" type="button">Start from beginning</button><button id="resume-continue" type="button">Continue</button></div></div>
+</div>
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity duration-150 hidden" id="youtube-modal" data-modal-overlay>
+<div class="relative w-full max-w-md yt-panel rounded-2xl p-5 shadow-2xl bg-[#181818] text-white border border-[#333333]">
+<!-- Title Header -->
+<div class="flex items-start justify-between pb-3 border-b border-[#2d2d2d]">
+<div class="flex items-center space-x-2.5">
+<div class="w-8 h-8 rounded-lg bg-[#FF0000] flex items-center justify-center text-white shadow-yt-red">
+<svg class="w-4 h-4 fill-current ml-0.5" viewbox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+</div>
+<div>
+<h2 class="text-lg font-bold text-white tracking-tight">Open from YouTube</h2>
+<p class="text-xs text-neutral-400">Paste a link and play with your saved YouTube defaults.</p>
+</div>
+</div>
+<button class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-[#272727] transition cursor-pointer" onclick="closeModal('youtube-modal')">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg>
+</button>
+</div>
+<!-- Main Body -->
+<div class="mt-4 space-y-3">
+<!-- URL INPUT -->
+<div class="space-y-1.5">
+<label class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">YOUTUBE LINK</label>
+<div class="flex items-center gap-2">
+<input class="flex-1 bg-[#141414] border border-[#383838] rounded-xl px-3.5 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#FF0000] font-mono" id="yt-url-field" placeholder="https://www.youtube.com/watch?v=..." type="url" autocomplete="off"/>
+<button class="py-2 px-4 rounded-xl bg-[#FF0000] hover:bg-[#CC0000] text-white text-xs font-bold transition cursor-pointer shadow-yt-red disabled:opacity-50 disabled:cursor-wait" id="yt-find-button">
+        Find video
+      </button>
+</div>
+</div>
+<!-- YouTube Video Card Preview -->
+<div class="p-3 rounded-xl bg-[#212121] border border-[#333333] items-center space-x-3 hidden" id="yt-video-preview">
+<div class="w-24 h-14 rounded-lg overflow-hidden relative flex-shrink-0 bg-black">
+<img alt="Thumbnail" class="w-full h-full object-cover" id="yt-thumbnail"/>
+<span class="absolute bottom-1 right-1 px-1 rounded bg-black/85 text-[8px] font-mono font-bold text-white" id="yt-duration">00:00</span>
+</div>
+<div class="min-w-0 flex-1">
+<h4 class="text-xs font-bold text-white truncate" id="yt-video-title"></h4>
+<p class="text-[10px] text-neutral-400 mt-0.5" id="yt-video-meta"></p>
+<div class="flex items-center gap-2 mt-1">
+<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#FF0000]/20 text-[#FF4E4E] border border-[#FF0000]/30" id="yt-caption-summary">No captions</span>
+<span class="text-[9px] text-neutral-400" id="yt-channel"></span>
+</div>
+</div>
+</div>
+<div class="lp-inline-loader hidden" id="yt-loading-state" role="status" aria-live="polite">
+<div class="lp-loading-mark" aria-hidden="true"></div>
+<div class="lp-loader-copy"><strong id="yt-loading-title">Finding YouTube video</strong><span id="yt-loading-detail">Reading formats, audio, and captions...</span></div>
+<div class="lp-loading-progress" aria-hidden="true"><span></span></div>
+</div>
+<p class="hidden text-[11px] leading-relaxed rounded-lg border px-3 py-2" id="yt-status" role="status"></p>
+<button class="hidden lp-youtube-settings-link" id="yt-session-settings" type="button">Open YouTube Settings <span aria-hidden="true">→</span></button>
+</div>
+<!-- Modal Footer Actions -->
+<div class="mt-5 pt-3 border-t border-[#2d2d2d] flex items-center justify-end space-x-2">
+<button class="px-4 py-2 rounded-xl bg-[#272727] hover:bg-[#383838] text-neutral-300 hover:text-white text-xs font-medium transition cursor-pointer" onclick="closeModal('youtube-modal')">
+    Cancel
+  </button>
+<button class="px-5 py-2 rounded-xl bg-[#FF0000] hover:bg-[#CC0000] text-white text-xs font-bold shadow-yt-red transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" id="yt-play-button" disabled>
+    Play in Rupelian
+  </button>
+</div>
+</div>
+</div>
+<!-- BEGIN: InteractiveScripts -->
+<script data-purpose="keyboard-shortcuts-and-interactions">
+    // Dialog handlers
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal && modal.classList.contains('hidden')) {
+        modal.classList.remove('hidden');
+        document.dispatchEvent(new CustomEvent('lingo-modal-open', { detail: { id: modalId } }));
+      }
+    }
+
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal && !modal.classList.contains('hidden')) {
+        modal.classList.add('hidden');
+        document.dispatchEvent(new CustomEvent('lingo-modal-close', { detail: { id: modalId } }));
+      }
+    }
+
+    function toggleModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (!modal) return;
+      if (modal.classList.contains('hidden')) openModal(modalId);
+      else closeModal(modalId);
+    }
+
+    function openSettingsTab(tabName) {
+      const selected = tabName || 'general';
+      openModal('settings-dialog');
+      document.querySelectorAll('[data-settings-tab]').forEach((button) => button.classList.toggle('is-active', button.dataset.settingsTab === selected));
+      document.querySelectorAll('[data-settings-panel]').forEach((panel) => panel.classList.toggle('hidden', panel.dataset.settingsPanel !== selected));
+      document.dispatchEvent(new CustomEvent('settings-tab-change', { detail: selected }));
+    }
+
+    document.querySelectorAll('[data-settings-tab]').forEach((button) => button.addEventListener('click', () => openSettingsTab(button.dataset.settingsTab)));
+
+    // Sidebar tab handlers
+    function toggleSidebar(tabName) {
+      const sidebar = document.getElementById('main-sidebar');
+      const currentActive = document.getElementById('vocab-view').classList.contains('hidden') ? 'ai-tutor' : 'vocab';
+      const requestedTab = tabName || currentActive;
+      if (sidebar.classList.contains('hidden')) {
+        sidebar.classList.remove('hidden');
+        switchSidebarTab(requestedTab);
+      } else {
+        if (currentActive === requestedTab) {
+          sidebar.classList.add('hidden');
+        } else {
+          switchSidebarTab(requestedTab);
+        }
+      }
+    }
+
+    function closeSidebar() {
+      const sidebar = document.getElementById('main-sidebar');
+      if (sidebar) sidebar.classList.add('hidden');
+    }
+
+    function switchSidebarTab(tab) {
+      const vocabView = document.getElementById('vocab-view');
+      const aiView = document.getElementById('ai-tutor-view');
+      const vocabBtn = document.getElementById('tab-vocab-btn');
+      const aiBtn = document.getElementById('tab-ai-btn');
+
+      if (tab === 'vocab') {
+        vocabView.classList.remove('hidden');
+        aiView.classList.add('hidden');
+        vocabBtn.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-[#272727] text-white transition flex items-center gap-1.5 border border-[#383838]';
+        aiBtn.className = 'px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:text-white transition flex items-center gap-1.5';
+      } else {
+        vocabView.classList.add('hidden');
+        aiView.classList.remove('hidden');
+        aiBtn.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-[#272727] text-white transition flex items-center gap-1.5 border border-[#383838]';
+        vocabBtn.className = 'px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:text-white transition flex items-center gap-1.5';
+      }
+      document.dispatchEvent(new CustomEvent('sidebar-tab-change', { detail: tab }));
+    }
+
+    function fillAgentPrompt(text) {
+      const input = document.getElementById('ai-chat-input');
+      if (input) {
+        input.value = text;
+        input.focus();
+      }
+    }
+
+    // Quality selector menu toggle
+    function toggleQualityMenu() {
+      const menu = document.getElementById('quality-flyout');
+      if (menu) menu.classList.toggle('hidden');
+    }
+
+    function toggleSubtitleDropdown() {
+      const menu = document.getElementById('subtitle-dropdown-menu');
+      const trigger = document.getElementById('cc-btn');
+      const chevron = document.getElementById('cc-button-chevron');
+      if (!menu || trigger?.classList.contains('lp-hidden')) {
+        menu?.classList.add('hidden');
+        return;
+      }
+      menu.classList.toggle('hidden');
+      chevron?.classList.toggle('rotate-180', !menu.classList.contains('hidden'));
+    }
+
+    function toggleAudioDropdown() {
+      const menu = document.getElementById('audio-track-dropdown-menu');
+      const trigger = document.getElementById('audio-track-control');
+      const chevron = document.getElementById('audio-track-chevron');
+      if (!menu || trigger?.classList.contains('lp-hidden')) {
+        menu?.classList.add('hidden');
+        return;
+      }
+      menu.classList.toggle('hidden');
+      chevron?.classList.toggle('rotate-180', !menu.classList.contains('hidden'));
+    }
+
+    // Keep interactions inside a flyout alive even if that interaction rerenders
+    // and detaches the clicked item before the event reaches document.
+    function eventOccurredInside(event, element) {
+      const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+      return path.includes(element) || element.contains(event.target);
+    }
+
+    // Close flyouts and dialogs only when the original click was outside them.
+    document.addEventListener('click', (e) => {
+      const flyout = document.getElementById('quality-flyout');
+      if (flyout && !flyout.classList.contains('hidden')) {
+        const trigger = e.target.closest('[onclick="toggleQualityMenu()"]');
+        if (!trigger && !eventOccurredInside(e, flyout)) {
+          flyout.classList.add('hidden');
+        }
+      }
+      const subtitleFlyout = document.getElementById('subtitle-dropdown-menu');
+      if (subtitleFlyout && !subtitleFlyout.classList.contains('hidden')) {
+        const trigger = e.target.closest('#cc-btn');
+        if (!trigger && !eventOccurredInside(e, subtitleFlyout)) {
+          subtitleFlyout.classList.add('hidden');
+          document.getElementById('cc-button-chevron')?.classList.remove('rotate-180');
+        }
+      }
+      const audioFlyout = document.getElementById('audio-track-dropdown-menu');
+      if (audioFlyout && !audioFlyout.classList.contains('hidden')) {
+        const trigger = e.target.closest('#audio-track-btn');
+        if (!trigger && !eventOccurredInside(e, audioFlyout)) {
+          audioFlyout.classList.add('hidden');
+          document.getElementById('audio-track-chevron')?.classList.remove('rotate-180');
+        }
+      }
+      const modalOverlay = e.target.closest('[data-modal-overlay]');
+      if (modalOverlay && e.target === modalOverlay) closeModal(modalOverlay.id);
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (window.__LINGO_SHORTCUT_CAPTURE_ACTIVE__) return;
+      if (e.key === 'Escape') {
+        closeModal('youtube-modal');
+        closeModal('subtitles-dialog');
+        closeModal('settings-dialog');
+        closeSidebar();
+        const qualityFlyout = document.getElementById('quality-flyout');
+        if (qualityFlyout && !qualityFlyout.classList.contains('hidden')) qualityFlyout.classList.add('hidden');
+        const subtitleFlyout = document.getElementById('subtitle-dropdown-menu');
+        if (subtitleFlyout && !subtitleFlyout.classList.contains('hidden')) subtitleFlyout.classList.add('hidden');
+        const audioFlyout = document.getElementById('audio-track-dropdown-menu');
+        if (audioFlyout && !audioFlyout.classList.contains('hidden')) audioFlyout.classList.add('hidden');
+      }
+      if (e.code === 'Space' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        e.preventDefault();
+      }
+    });
+</script>
+<!-- END: InteractiveScripts -->
+<script type="module" src="/src/player.js"></script>
+</body></html>

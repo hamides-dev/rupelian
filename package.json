@@ -1,0 +1,44 @@
+{
+  "name": "rupelian",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "cargo:check": "node scripts/cargo-with-runtime.mjs check --manifest-path src-tauri/Cargo.toml",
+    "tauri": "tauri",
+    "test": "node --test scripts/*.test.mjs",
+    "check:repo": "node scripts/check-repository.mjs",
+    "check": "npm run test && npm run build && npm run check:repo",
+    "cargo:test": "node scripts/cargo-with-runtime.mjs test --manifest-path src-tauri/Cargo.toml --lib",
+    "setup:media": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-media.ps1",
+    "check:media": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-media.ps1 -Check",
+    "prepare": "node scripts/install-git-hooks.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.1",
+    "@tauri-apps/plugin-dialog": "^2.4.0",
+    "tauri-plugin-libmpv-api": "^0.3.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
+    "@tauri-apps/cli": "^2.12.1",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vite": "^7.3.1"
+  },
+  "description": "A modern desktop video player for language learning with interactive subtitles, vocabulary, and AI assistance.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hamides-dev/rupelian.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hamides-dev/rupelian/issues"
+  },
+  "homepage": "https://github.com/hamides-dev/rupelian",
+  "engines": {
+    "node": ">=24 <25"
+  }
+}

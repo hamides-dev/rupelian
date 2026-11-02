@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Rupelian \u2014 YouTube Connector",
+  "version": "3.0.0",
+  "minimum_chrome_version": "116",
+  "description": "Connect the YouTube account already signed in in this browser to your local Rupelian player, only when you click Connect.",
+  "permissions": [
+    "cookies"
+  ],
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://127.0.0.1/connect/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

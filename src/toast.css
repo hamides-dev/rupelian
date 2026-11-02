@@ -1,0 +1,16 @@
+.toast {
+  position: absolute;
+  z-index: 60;
+  left: 50%;
+  bottom: 125px;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border: 1px solid #ff000080;
+  border-radius: 10px;
+  background: #222e;
+  box-shadow: 0 12px 30px #000b;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(12px);
+}

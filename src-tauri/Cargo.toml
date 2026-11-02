@@ -1,0 +1,40 @@
+[package]
+name = "rupelian"
+version = "0.1.0"
+description = "A cinematic language-learning video player"
+authors = ["hamides-dev"]
+edition = "2021"
+
+[lib]
+name = "rupelian_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+serde_json = "1"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-libmpv = "0.3.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+axum = "0.8"
+tokio = { version = "1", features = ["io-util", "net", "sync", "time"] }
+tokio-tungstenite = "0.28"
+futures-util = "0.3"
+base64 = "0.22"
+open = "5"
+rand = "0.8"
+sha2 = "0.10"
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.60.2", features = ["Win32_Foundation", "Win32_Security_Cryptography", "Win32_Graphics_Gdi", "Win32_Graphics_Dwm", "Win32_System_LibraryLoader", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_UI_WindowsAndMessaging", "Win32_UI_HiDpi"] }
