@@ -32,7 +32,7 @@ Committing and pushing project work is part of the owner's standing instruction.
 
 ## Repository automation
 
-`npm ci` installs the repository's local Git hooks when Git is available. The pre-commit hook checks the staged snapshot for forbidden files, oversized blobs, and recognizable credentials. The pre-push hook runs the source checks. A Windows GitHub Actions workflow is prepared but awaiting authorization to publish it. Once available, it will independently build the frontend and check/test Rust. Hooks support the workflow; CI and human review remain necessary.
+`npm ci` installs the repository's local Git hooks when Git is available. The pre-commit hook checks the staged snapshot for forbidden files, oversized blobs, and recognizable credentials. The pre-push hook runs the source checks. The Windows GitHub Actions workflow independently builds the frontend and checks/tests Rust. Hooks support the workflow; CI and human review remain necessary.
 
 ## License and third-party components
 
