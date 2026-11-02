@@ -4,6 +4,7 @@
 
 A modern desktop video player built for language learners. Watch local videos or YouTube, explore interactive subtitles, save useful vocabulary, and work through difficult language with an AI tutor without leaving the player.
 
+[![CI](https://github.com/hamides-dev/rupelian/actions/workflows/ci.yml/badge.svg)](https://github.com/hamides-dev/rupelian/actions/workflows/ci.yml)
 [![Platform: Windows x64](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D4)](#development)
 [![Status: active development](https://img.shields.io/badge/status-active%20development-orange)](#project-status)
 
@@ -51,7 +52,7 @@ npm run cargo:check -- --locked
 npm run cargo:test -- --locked
 ```
 
-A Windows GitHub Actions workflow is prepared and awaiting authorization to publish it. It is intended to run source checks and Rust checks/tests. Actual playback, GPU composition, browser connection, and desktop interaction need the focused smoke tests documented in [AGENTS.md](AGENTS.md); unit tests alone do not validate those behaviors.
+GitHub Actions runs source checks and Rust checks/tests on Windows. Actual playback, GPU composition, browser connection, and desktop interaction need the focused smoke tests documented in [AGENTS.md](AGENTS.md); CI unit tests alone do not validate those behaviors.
 
 To expose the development WebView to those tests:
 
