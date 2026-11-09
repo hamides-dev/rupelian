@@ -1072,6 +1072,8 @@ async function ensureNativePlayer({ quiet = false } = {}) {
           "config": "no",
           "cache": "auto",
           "cache-pause": "no",
+          "demuxer-max-bytes": 33554432,
+          "demuxer-max-back-bytes": 16777216,
           "demuxer-readahead-secs": 1,
           "audio-buffer": 0.1,
           "hr-seek-framedrop": "yes",

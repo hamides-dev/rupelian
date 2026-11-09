@@ -26,7 +26,8 @@
         "decorations": false,
         "transparent": false,
         "backgroundColor": [11, 11, 12, 255],
-        "shadow": true
+        "shadow": true,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,Translate,OptimizationHints,MediaRouter --renderer-process-limit=1 --disable-background-networking --disable-component-update --disable-domain-reliability --disable-sync"
       }
     ],
     "security": {
