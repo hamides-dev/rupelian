@@ -34,21 +34,26 @@
     .startup-content { position: relative; width: min(310px, 72vw); text-align: center; }
     .startup-mark {
       position: relative;
-      width: 58px;
-      height: 42px;
-      margin: 0 auto 18px;
-      border-radius: 14px;
-      background: #f00;
-      box-shadow: 0 0 32px rgba(255, 0, 0, .32), 0 12px 36px rgba(0, 0, 0, .5);
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 16px;
+      border-radius: 16px;
+      background: radial-gradient(circle at 35% 35%, #2a2026 0%, #111014 100%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 0 32px rgba(229, 9, 20, .35), 0 12px 32px rgba(0, 0, 0, .6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .startup-mark::after {
-      content: "";
-      position: absolute;
-      left: 23px;
-      top: 13px;
-      border-left: 15px solid white;
-      border-top: 8px solid transparent;
-      border-bottom: 8px solid transparent;
+      content: "R";
+      font-size: 28px;
+      font-weight: 800;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #ff3b5c 0%, #e50914 60%, #ff8095 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 6px rgba(229, 9, 20, 0.45));
     }
     .startup-content strong { display: block; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; }
     .startup-content p { margin: 7px 0 16px; color: #9b9ba2; font-size: 11px; }

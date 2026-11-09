@@ -1,0 +1,5 @@
+{
+  "bundle": {
+    "resources": ["binaries/*", "lib/*", "rupelian_lib.dll", "vcruntime140.dll", "vulkan-1.dll"]
+  }
+}

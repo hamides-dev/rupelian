@@ -51,7 +51,13 @@
       }
     ],
     "resources": ["binaries/*", "lib/*"],
-    "targets": "all",
-    "windows": { "wix": { "language": "en-US" } }
+    "targets": ["nsis"],
+    "windows": {
+      "nsis": {
+        "installMode": "both",
+        "startMenuFolder": "Rupelian",
+        "displayLanguageSelector": false
+      }
+    }
   }
 }
