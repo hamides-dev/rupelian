@@ -6,14 +6,14 @@
   "packages": {
     "windows-x64-patch": {
       "url": "https://github.com/hamides-dev/rupelian/releases/download/v0.1.1/Rupelian-Player-Update-v0.1.1.exe",
-      "sha256": "5E7E46FC25797399B7AF2AF86ACD5BEECE4196E2091D7C2630AE135712FBD71F",
-      "size": 3608838,
+      "sha256": "86AA425DCB75186E150FC60E3FABBADBD579F3580D313046C4618C42C50C24AD",
+      "size": 3608245,
       "description": "Lightweight Fast Patch (~3.5 MB)"
     },
     "windows-x64-installer": {
       "url": "https://github.com/hamides-dev/rupelian/releases/download/v0.1.1/Rupelian-Player-Setup-v0.1.1.exe",
-      "sha256": "28205C7AF73E6239BA4A6C7E8C52B59CC818A15317E0C8DAA8976F6DFF0C30F3",
-      "size": 141233913,
+      "sha256": "B0F5B1F025F66B098991AF0E0BE65C182F68B98CB121104AA8EAF3870A011C69",
+      "size": 140006193,
       "description": "Full Setup Installer (~135 MB)"
     }
   }
