@@ -100,6 +100,31 @@ pub async fn load_external_subtitle(
 }
 
 #[tauri::command]
+pub fn clear_timeline_previews(app: AppHandle) -> Result<(), String> {
+    clear_timeline_previews_inner(&app)
+}
+
+pub fn clear_timeline_previews_inner(app: &AppHandle) -> Result<(), String> {
+    if let Ok(cache) = app.path().app_cache_dir() {
+        let dir = cache.join("timeline-previews");
+        if dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for entry in entries.flatten() {
+                    let _ = std::fs::remove_file(entry.path());
+                }
+            }
+        }
+        if let Some(parent) = cache.parent() {
+            let legacy = parent.join("com.webler.lingocinema").join("timeline-previews");
+            if legacy.is_dir() {
+                let _ = std::fs::remove_dir_all(&legacy);
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn prepare_local_preview(
     app: AppHandle,
     path: String,
@@ -350,6 +375,36 @@ fn background_media_command(executable: PathBuf) -> Command {
     command
 }
 
+fn prune_stale_previews(cache: &std::path::Path) {
+    if let Ok(entries) = std::fs::read_dir(cache) {
+        let mut jpgs: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            if name.ends_with(".part.jpg") {
+                if let Ok(meta) = entry.metadata() {
+                    if let Ok(mod_time) = meta.modified() {
+                        if mod_time.elapsed().unwrap_or_default().as_secs() > 5 {
+                            let _ = std::fs::remove_file(&path);
+                        }
+                    }
+                }
+            } else if name.ends_with(".jpg") {
+                if let Ok(meta) = entry.metadata() {
+                    let mtime = meta.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                    jpgs.push((mtime, path));
+                }
+            }
+        }
+        if jpgs.len() > 60 {
+            jpgs.sort_by_key(|(mtime, _)| *mtime);
+            for (_, path) in jpgs.iter().take(jpgs.len().saturating_sub(50)) {
+                let _ = std::fs::remove_file(path);
+            }
+        }
+    }
+}
+
 fn generate_local_preview(app: &AppHandle, path: &str, seconds: f64) -> Result<String, String> {
     let input = PathBuf::from(path);
     if !input.is_file() {
@@ -377,6 +432,7 @@ fn generate_local_preview(app: &AppHandle, path: &str, seconds: f64) -> Result<S
         .join("timeline-previews");
     std::fs::create_dir_all(&cache)
         .map_err(|error| format!("Could not create the timeline preview cache: {error}"))?;
+    prune_stale_previews(&cache);
     let output = cache.join(format!("{:016x}.jpg", hasher.finish()));
     if std::fs::metadata(&output).is_ok_and(|value| value.len() > 256) {
         return Ok(output.to_string_lossy().into_owned());

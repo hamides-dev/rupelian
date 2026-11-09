@@ -148,6 +148,16 @@
 <span class="w-1.5 h-1.5 rounded-full bg-[#FF0000] animate-pulse"></span>
 <span class="font-medium text-white">YouTube Stream</span>
 </button>
+<!-- Close Current Media Button -->
+<button id="close-media-button" class="hidden flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 border border-white/10 hover:border-red-500/30 text-[10px] font-medium transition cursor-pointer" title="Close current video (Ctrl+W)">
+<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+<span>Close video</span>
+</button>
+<!-- Update Available Badge Pill -->
+<button id="update-badge-pill" class="hidden flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-[10px] font-medium transition cursor-pointer" onclick="openModal('update-modal')" title="New version available">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+<span id="update-badge-version">Update v0.1.1</span>
+</button>
 </div>
 <!-- Right: YouTube Tools & Windows Controls -->
 <div class="flex items-center space-x-2 flex-shrink-0">
@@ -674,7 +684,14 @@
 <button class="lp-settings-tab" data-settings-tab="prompts" type="button">AI Prompts</button>
 </nav>
 <div class="flex-1 min-w-0 overflow-y-auto p-5 sm:p-6">
-<section class="lp-settings-panel" data-settings-panel="general"><div class="lp-settings-heading"><h3>General</h3><p>Control how the desktop interface behaves.</p></div><div class="lp-settings-card"><label class="lp-settings-row"><span><strong>Player controls auto-hide</strong><small>Choose how long the controls remain visible after pointer activity.</small></span><select id="setting-chrome-delay"><option value="2000">2 seconds</option><option value="3000">3 seconds</option><option value="5000">5 seconds</option><option value="0">Never</option></select></label><div class="lp-settings-row"><span class="min-w-0"><strong>Persistent data folder</strong><small class="break-all" id="setting-data-location">Documents\Rupelian</small></span><span class="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-emerald-300">Survives uninstall</span></div></div></section>
+<section class="lp-settings-panel" data-settings-panel="general"><div class="lp-settings-heading"><h3>General</h3><p>Control how the desktop interface behaves.</p></div><div class="lp-settings-card"><label class="lp-settings-row"><span><strong>Player controls auto-hide</strong><small>Choose how long the controls remain visible after pointer activity.</small></span><select id="setting-chrome-delay"><option value="2000">2 seconds</option><option value="3000">3 seconds</option><option value="5000">5 seconds</option><option value="0">Never</option></select></label><div class="lp-settings-row"><span class="min-w-0"><strong>Persistent data folder</strong><small class="break-all" id="setting-data-location">Documents\Rupelian</small></span><span class="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-emerald-300">Survives uninstall</span></div></div>
+<div class="lp-settings-card mt-4" id="settings-update-card">
+<div class="lp-settings-heading lp-settings-subheading"><h3>Application Updates</h3><p>Check for newer versions and download updates with minimal bandwidth.</p></div>
+<div class="lp-settings-row"><span><strong>Installed version</strong><small id="setting-current-version">v0.1.1</small></span><button id="btn-check-updates" class="px-3 py-1.5 rounded-lg bg-[#272727] hover:bg-[#383838] border border-[#404040] text-xs font-medium text-white transition cursor-pointer" type="button">Check for updates</button></div>
+<label class="lp-settings-row"><span><strong>Auto-check for updates</strong><small>Silently check for new versions on player startup.</small></span><span class="lp-switch"><input id="setting-auto-update" type="checkbox" checked/><span></span></span></label>
+<div id="update-check-status" class="text-xs text-neutral-400 pt-1"></div>
+</div>
+</section>
 <section class="lp-settings-panel hidden" data-settings-panel="playback">
 <div class="lp-settings-heading"><h3>Playback</h3><p>Configure seeking and language-learning playback behavior.</p></div>
 <div class="lp-settings-card">
@@ -812,7 +829,62 @@
 </div>
 </div>
 </div>
-<!-- BEGIN: InteractiveScripts -->
+<!-- UPDATE MODAL -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity duration-150 hidden" id="update-modal" data-modal-overlay>
+<div class="w-full max-w-md rounded-2xl bg-[#181818] border border-[#2d2d2d] p-6 shadow-2xl space-y-4">
+<div class="flex items-center justify-between border-b border-[#2d2d2d] pb-3">
+<div class="flex items-center space-x-2.5">
+<div class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+</div>
+<div>
+<h3 class="text-sm font-bold text-white" id="update-modal-title">Software Update Available</h3>
+<p class="text-[11px] text-neutral-400" id="update-modal-subtitle">A newer version is available for download.</p>
+</div>
+</div>
+<button class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-[#272727] transition cursor-pointer" onclick="closeModal('update-modal')">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+</button>
+</div>
+<div class="space-y-3 text-xs">
+<div class="flex items-center justify-between p-3 rounded-xl bg-[#202020] border border-[#2e2e2e]">
+<div>
+<span class="text-neutral-400 block text-[10px] uppercase font-bold tracking-wider">New Version</span>
+<span class="text-white font-bold text-sm" id="update-modal-version">v0.1.1</span>
+</div>
+<div class="text-right">
+<span class="text-neutral-400 block text-[10px] uppercase font-bold tracking-wider">Package</span>
+<span class="text-emerald-400 font-semibold" id="update-modal-size">Fast Patch (~12 MB)</span>
+</div>
+</div>
+<div class="space-y-1">
+<span class="text-neutral-400 text-[10px] uppercase font-bold tracking-wider block">What's New</span>
+<div class="p-3 rounded-xl bg-[#141414] border border-[#282828] text-neutral-300 max-h-36 overflow-y-auto leading-relaxed whitespace-pre-wrap text-[11px]" id="update-modal-notes">
+</div>
+</div>
+<div id="update-progress-container" class="space-y-2 hidden">
+<div class="flex items-center justify-between text-[11px]">
+<span id="update-progress-status" class="text-neutral-300">Downloading update...</span>
+<span id="update-progress-percent" class="font-mono text-emerald-400 font-bold">0%</span>
+</div>
+<div class="w-full h-2 rounded-full bg-[#252525] overflow-hidden">
+<div id="update-progress-bar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-200" style="width: 0%"></div>
+</div>
+<div class="flex items-center justify-between text-[10px] text-neutral-500">
+<span id="update-progress-bytes">0 MB / 0 MB</span>
+<span id="update-progress-status-extra">Do not close player</span>
+</div>
+</div>
+<div id="update-modal-error" class="hidden p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[11px]"></div>
+</div>
+<div class="pt-2 flex items-center justify-end space-x-2" id="update-modal-actions">
+<button class="px-4 py-2 rounded-xl bg-[#272727] hover:bg-[#383838] text-neutral-300 hover:text-white text-xs font-medium transition cursor-pointer" onclick="closeModal('update-modal')">Later</button>
+<button class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer flex items-center space-x-1.5 shadow-lg shadow-emerald-950" id="btn-start-update">
+<span>Download &amp; Install</span>
+</button>
+</div>
+</div>
+</div>
 <script data-purpose="keyboard-shortcuts-and-interactions">
     // Dialog handlers
     function openModal(modalId) {

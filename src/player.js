@@ -18,6 +18,7 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const buttonByTitle = (title) => $$('button').find((button) => button.title === title);
 const buttonByText = (text, root = document) => $$('button', root).find((button) => button.textContent.replace(/\s+/g, " ").trim().includes(text));
+const APP_VERSION = "0.1.1";
 const startupStatus = document.querySelector("#startup-status");
 const startupLifecycle = {
   startedAt: Number(window.__LINGO_BOOT_STARTED_AT__) || performance.now(),
@@ -1639,11 +1640,38 @@ function setLocalMetadata(name) {
 
 function showLoadedMediaControls() {
   qualityControl?.classList.remove("lp-hidden");
+  document.getElementById("close-media-button")?.classList.remove("hidden");
 }
 
 function hideLoadedMediaControls() {
   qualityControl?.classList.add("lp-hidden");
   qualityFlyout?.classList.add("hidden");
+  document.getElementById("close-media-button")?.classList.add("hidden");
+}
+
+function closeCurrentMedia() {
+  if (!state.sourceType) return;
+  mediaPause();
+  state.sourceType = "";
+  state.videoPath = "";
+  state.sourceUrl = "";
+  state.youtubeMedia = null;
+  state.youtubeFormat = null;
+  video.removeAttribute("src");
+  video.load();
+  video.classList.remove("has-source");
+  poster.style.visibility = "visible";
+  syncVideoDragSurface();
+  resetSubtitles();
+  hideLoadedMediaControls();
+  resetPreview();
+  updatePlayButton();
+  if (sceneLabel) sceneLabel.textContent = "No video loaded";
+  if (remainingLabel) remainingLabel.textContent = "-00:00 remaining";
+  if (durationLabel) durationLabel.textContent = "00:00";
+  if (currentTimeLabel) currentTimeLabel.textContent = "00:00";
+  document.title = "Rupelian Player";
+  notify("Media closed");
 }
 
 function renderQualityInfo(label = "", details = "") {
@@ -3086,6 +3114,9 @@ function resetPreview() {
   seekPreviewOverlay.classList.add("lp-hidden");
   seekPreviewOverlay.removeAttribute("src");
   if (previewTime) previewTime.textContent = "00:00";
+  if (window.__TAURI_INTERNALS__) {
+    invoke("clear_timeline_previews").catch(() => {});
+  }
 }
 
 function cachedPreviewForTime(time) {
@@ -5912,6 +5943,11 @@ const shortcutActions = {
 
 document.addEventListener("keydown", (event) => {
   if (handleShortcutCapture(event)) return;
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "w" && state.sourceType) {
+    event.preventDefault();
+    closeCurrentMedia();
+    return;
+  }
   if (event.key === "Escape") {
     dictionaryCard?.classList.add("lp-hidden");
     if (window.__TAURI_INTERNALS__) {
@@ -5942,7 +5978,12 @@ document.addEventListener("drop", (event) => {
   if (files?.length) handleDroppedFiles(files).catch((error) => notify(`Could not open the dropped file: ${error}`));
 });
 
-window.addEventListener("beforeunload", () => persistPlaybackProgress(true));
+window.addEventListener("beforeunload", () => {
+  persistPlaybackProgress(true);
+  if (window.__TAURI_INTERNALS__) {
+    invoke("clear_timeline_previews").catch(() => {});
+  }
+});
 
 updateCcButton("OFF");
 updatePlayButton();
@@ -5961,7 +6002,155 @@ function runStartupTaskWhenIdle(task, timeout = 700) {
   }
 }
 
+let activeUpdateInfo = null;
+let updateDownloadInProgress = false;
+
+function initAppUpdater() {
+  const btnCheckUpdates = document.getElementById("btn-check-updates");
+  const updateStatus = document.getElementById("update-check-status");
+  const settingAutoUpdate = document.getElementById("setting-auto-update");
+  const updateBadgePill = document.getElementById("update-badge-pill");
+  const updateBadgeVersion = document.getElementById("update-badge-version");
+  const currentVersionEl = document.getElementById("setting-current-version");
+  const btnStartUpdate = document.getElementById("btn-start-update");
+  const closeMediaBtn = document.getElementById("close-media-button");
+
+  closeMediaBtn?.addEventListener("click", closeCurrentMedia);
+
+  if (currentVersionEl) currentVersionEl.textContent = `v${APP_VERSION}`;
+
+  if (settingAutoUpdate) {
+    settingAutoUpdate.checked = playerSettings.autoUpdate !== false;
+    settingAutoUpdate.addEventListener("change", () => {
+      playerSettings.autoUpdate = settingAutoUpdate.checked;
+      saveSetting("player", "autoUpdate", settingAutoUpdate.checked);
+    });
+  }
+
+  async function performUpdateCheck(manual = false) {
+    if (manual && btnCheckUpdates) {
+      btnCheckUpdates.disabled = true;
+      btnCheckUpdates.textContent = "Checking...";
+    }
+    if (updateStatus) updateStatus.textContent = manual ? "Connecting to update server..." : "";
+
+    try {
+      const info = await invoke("check_for_updates");
+      activeUpdateInfo = info;
+      if (currentVersionEl && info.currentVersion) {
+        currentVersionEl.textContent = `v${info.currentVersion}`;
+      }
+
+      if (info.hasUpdate) {
+        if (updateBadgePill) {
+          updateBadgePill.classList.remove("hidden");
+          if (updateBadgeVersion) updateBadgeVersion.textContent = `Update v${info.latestVersion}`;
+        }
+        if (updateStatus) {
+          updateStatus.innerHTML = `<span class="text-emerald-400 font-medium">New version available: v${escapeHtml(info.latestVersion)}</span>`;
+        }
+
+        const modalVersion = document.getElementById("update-modal-version");
+        const modalSize = document.getElementById("update-modal-size");
+        const modalNotes = document.getElementById("update-modal-notes");
+        if (modalVersion) modalVersion.textContent = `v${info.latestVersion}`;
+        if (modalSize) {
+          const mb = (info.packageSize / (1024 * 1024)).toFixed(1);
+          modalSize.textContent = info.isPatch ? `Fast Patch (~${mb} MB)` : `Full Setup (~${mb} MB)`;
+        }
+        if (modalNotes) modalNotes.textContent = info.notes || "Performance and stability improvements.";
+
+        if (manual) {
+          window.openModal?.("update-modal");
+        }
+      } else {
+        if (updateBadgePill) updateBadgePill.classList.add("hidden");
+        if (manual && updateStatus) {
+          updateStatus.textContent = `You are running the latest version (v${info.currentVersion}).`;
+        }
+      }
+    } catch (err) {
+      if (manual && updateStatus) {
+        updateStatus.textContent = `Update check failed: ${err}`;
+      }
+      console.warn("Update check failed", err);
+    } finally {
+      if (manual && btnCheckUpdates) {
+        btnCheckUpdates.disabled = false;
+        btnCheckUpdates.textContent = "Check for updates";
+      }
+    }
+  }
+
+  btnCheckUpdates?.addEventListener("click", () => performUpdateCheck(true));
+
+  if (window.__TAURI_INTERNALS__) {
+    listen("update-download-progress", (event) => {
+      const payload = event.payload;
+      const progressContainer = document.getElementById("update-progress-container");
+      const progressBar = document.getElementById("update-progress-bar");
+      const progressPercent = document.getElementById("update-progress-percent");
+      const progressBytes = document.getElementById("update-progress-bytes");
+      const progressStatus = document.getElementById("update-progress-status");
+
+      if (progressContainer) progressContainer.classList.remove("hidden");
+      if (progressBar) progressBar.style.width = `${Math.min(100, Math.max(0, payload.percent))}%`;
+      if (progressPercent) progressPercent.textContent = `${Math.round(payload.percent)}%`;
+      if (progressBytes) {
+        const dlMb = (payload.downloadedBytes / (1024 * 1024)).toFixed(1);
+        const totalMb = (payload.totalBytes / (1024 * 1024)).toFixed(1);
+        progressBytes.textContent = `${dlMb} MB / ${totalMb} MB`;
+      }
+      if (progressStatus) {
+        if (payload.percent >= 99.9) {
+          progressStatus.textContent = "Verifying integrity and launching updater...";
+        } else {
+          progressStatus.textContent = "Downloading update...";
+        }
+      }
+    }).catch(() => {});
+  }
+
+  btnStartUpdate?.addEventListener("click", async () => {
+    if (!activeUpdateInfo || updateDownloadInProgress) return;
+    updateDownloadInProgress = true;
+    const actions = document.getElementById("update-modal-actions");
+    const errorEl = document.getElementById("update-modal-error");
+    const progressContainer = document.getElementById("update-progress-container");
+    const progressStatus = document.getElementById("update-progress-status");
+    const progressBar = document.getElementById("update-progress-bar");
+
+    if (actions) actions.classList.add("hidden");
+    if (errorEl) errorEl.classList.add("hidden");
+    if (progressContainer) progressContainer.classList.remove("hidden");
+    if (progressBar) progressBar.style.width = "0%";
+    if (progressStatus) progressStatus.textContent = "Connecting to download server...";
+
+    try {
+      await invoke("download_and_apply_update", {
+        url: activeUpdateInfo.packageUrl,
+        sha256: activeUpdateInfo.packageSha256,
+        isPatch: activeUpdateInfo.isPatch
+      });
+    } catch (err) {
+      updateDownloadInProgress = false;
+      if (actions) actions.classList.remove("hidden");
+      if (errorEl) {
+        errorEl.textContent = `Update failed: ${err}`;
+        errorEl.classList.remove("hidden");
+      }
+    }
+  });
+
+  if (playerSettings.autoUpdate !== false) {
+    setTimeout(() => performUpdateCheck(false), 3500);
+  }
+}
+
 function startDeferredCapabilities() {
+  if (window.__TAURI_INTERNALS__) {
+    initAppUpdater();
+  }
   const persistenceTask = startPersistentHydration()
     .then(([settings, credentials]) => applyHydratedPersistence(settings, credentials))
     .catch((error) => {
