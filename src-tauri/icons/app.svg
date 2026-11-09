@@ -1,12 +1,95 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="red" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#ff3030"/>
-      <stop offset="1" stop-color="#b40000"/>
+    <!-- Background Gradient -->
+    <radialGradient id="bg-grad" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#22222a"/>
+      <stop offset="55%" stop-color="#121216"/>
+      <stop offset="100%" stop-color="#08080a"/>
+    </radialGradient>
+
+    <!-- Ruby / Crimson Primary Gradient -->
+    <linearGradient id="ruby-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff3b5c"/>
+      <stop offset="45%" stop-color="#e50914"/>
+      <stop offset="100%" stop-color="#9b001a"/>
     </linearGradient>
+
+    <!-- Accent Gradient for Loop & Leg -->
+    <linearGradient id="ruby-light" x1="0%" y1="20%" x2="100%" y2="80%">
+      <stop offset="0%" stop-color="#ff5e79"/>
+      <stop offset="50%" stop-color="#ff1a40"/>
+      <stop offset="100%" stop-color="#b3001e"/>
+    </linearGradient>
+
+    <!-- Inner Play Glow -->
+    <linearGradient id="play-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="badge-shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.65"/>
+    </filter>
+
+    <filter id="emblem-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#ff0033" flood-opacity="0.38"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="112" fill="#0f0f0f"/>
-  <rect x="72" y="130" width="368" height="252" rx="76" fill="url(#red)"/>
-  <path d="M220 194v124l108-62z" fill="#fff"/>
-  <circle cx="96" cy="96" r="18" fill="#ff3030"/>
+
+  <!-- Outer Rounded Squircle Base -->
+  <rect x="24" y="24" width="464" height="464" rx="116" fill="url(#bg-grad)" filter="url(#badge-shadow)"/>
+  <rect x="24" y="24" width="464" height="464" rx="116" fill="none" stroke="#ffffff" stroke-opacity="0.09" stroke-width="2"/>
+
+  <!-- Subtle Ambient Glow in Center -->
+  <circle cx="256" cy="256" r="140" fill="#e50914" opacity="0.12" filter="blur(30px)"/>
+
+  <!-- Main Emblem: Stylized R + Play Fusion -->
+  <g filter="url(#emblem-shadow)">
+    <!-- Vertical Pillar of R -->
+    <rect x="134" y="128" width="56" height="256" rx="28" fill="url(#ruby-primary)"/>
+
+    <!-- Top Loop of R (Aerodynamic forward curve) -->
+    <path d="M 172 128
+             H 296
+             C 356 128 392 164 392 214
+             C 392 264 354 298 296 298
+             H 172
+             Z"
+          fill="url(#ruby-light)"/>
+
+    <!-- Inner Bowl Cutout (Negative Space forming outer frame for Play Glyph) -->
+    <path d="M 190 178
+             H 288
+             C 322 178 340 192 340 214
+             C 340 236 322 248 288 248
+             H 190
+             Z"
+          fill="#121216"/>
+
+    <!-- Dynamic Forward Leg of R (Playback Angle) -->
+    <path d="M 252 268
+             L 348 376
+             C 358 388 378 388 388 376
+             C 398 364 396 346 384 332
+             L 294 238
+             C 278 248 264 258 252 268
+             Z"
+          fill="url(#ruby-primary)"/>
+
+    <!-- The Play Glyph: Crisp, high-contrast white triangle inside the R bowl -->
+    <path d="M 230 190
+             C 230 186 235 183 238 185
+             L 282 210
+             C 286 212 286 216 282 218
+             L 238 243
+             C 235 245 230 242 230 238
+             Z"
+          fill="url(#play-grad)"/>
+  </g>
+
+  <!-- Cinema / Subtitle Accent Dot (Top-Right) -->
+  <circle cx="376" cy="116" r="14" fill="#ff3b5c"/>
+  <circle cx="376" cy="116" r="7" fill="#ffffff" opacity="0.8"/>
 </svg>

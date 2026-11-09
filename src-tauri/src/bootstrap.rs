@@ -3,7 +3,7 @@
 use crate::bootstrap_protocol::{BootstrapInfo, BOOTSTRAP_ABI, FINISH_BOOTSTRAP, READ_BOOTSTRAP_BOUNDS};
 use std::{ffi::OsStr, os::windows::ffi::OsStrExt, ptr::null_mut, sync::{mpsc, Arc, atomic::{AtomicBool, Ordering}}, time::{Instant, SystemTime, UNIX_EPOCH}};
 use windows_sys::Win32::{
-    Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+    Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM},
     Graphics::Gdi::*,
     System::LibraryLoader::*,
     UI::{HiDpi::*, WindowsAndMessaging::*},
@@ -61,18 +61,16 @@ unsafe fn paint(window: HWND, surface: &mut Surface) {
 
     let cx = bounds.right / 2;
     let cy = bounds.bottom / 2 - s(20);
-    let red = CreateSolidBrush(0x000000ff);
-    let old_brush = SelectObject(dc, red);
-    let old_pen = SelectObject(dc, GetStockObject(NULL_PEN));
-    RoundRect(dc, cx-s(29), cy-s(55), cx+s(29), cy-s(13), s(20), s(20));
-    let white = CreateSolidBrush(0x00ffffff);
-    SelectObject(dc, white);
-    let triangle = [POINT { x: cx-s(6), y: cy-s(45) }, POINT { x: cx-s(6), y: cy-s(23) }, POINT { x: cx+s(12), y: cy-s(34) }];
-    Polygon(dc, triangle.as_ptr(), 3);
-    SelectObject(dc, old_brush);
+    let badge_brush = CreateSolidBrush(0x00141018);
+    let old_brush = SelectObject(dc, badge_brush);
+    let border_pen = CreatePen(PS_SOLID as i32, 1, 0x00352530);
+    let old_pen = SelectObject(dc, border_pen);
+    RoundRect(dc, cx-s(26), cy-s(56), cx+s(26), cy-s(6), s(16), s(16));
     SelectObject(dc, old_pen);
-    DeleteObject(red);
-    DeleteObject(white);
+    SelectObject(dc, old_brush);
+    DeleteObject(border_pen);
+    DeleteObject(badge_brush);
+    text(dc, surface.heading_font, "R", rect(cx-s(26), cy-s(56), cx+s(26), cy-s(6)), 0x003b3bff, DT_CENTER);
     text(dc, surface.heading_font, "RUPELIAN", rect(cx-s(160), cy, cx+s(160), cy+s(25)), 0x00ffffff, DT_CENTER);
     let status = if surface.started.elapsed().as_secs() < 20 { "Loading your player…" } else { "Taking longer than expected. Press Alt+F4 to close and retry." };
     text(dc, surface.font, status, rect(cx-s(250), cy+s(32), cx+s(250), cy+s(57)), 0x00a29b9b, DT_CENTER);

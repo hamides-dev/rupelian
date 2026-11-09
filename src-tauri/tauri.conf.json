@@ -50,8 +50,14 @@
         "role": "Viewer"
       }
     ],
-    "resources": ["binaries/*", "lib/*"],
-    "targets": "all",
-    "windows": { "wix": { "language": "en-US" } }
+    "resources": ["binaries/*", "lib/*", "rupelian_lib.dll", "vcruntime140.dll", "vulkan-1.dll"],
+    "targets": ["nsis"],
+    "windows": {
+      "nsis": {
+        "installMode": "both",
+        "startMenuFolder": "Rupelian",
+        "displayLanguageSelector": false
+      }
+    }
   }
 }
