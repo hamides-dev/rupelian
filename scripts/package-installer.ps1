@@ -35,41 +35,24 @@ Copy-Item -LiteralPath (Join-Path $runtimeDir 'vcruntime140.dll') -Destination (
 Copy-Item -LiteralPath (Join-Path $runtimeDir 'vulkan-1.dll') -Destination (Join-Path $srcTauri 'vulkan-1.dll') -Force
 
 try {
-  # 1. Build Full Standalone Installer
-  Write-Host "Building Full Standalone Setup Installer v$version..."
+  # Build Standalone Windows Installer named strictly Rupelian.exe
+  Write-Host "Building Rupelian Windows Installer v$version..."
   Remove-Item -Path "$nsisDir/*" -Recurse -Force -ErrorAction SilentlyContinue
   & npx tauri build --bundles nsis -c (Join-Path $srcTauri 'tauri.nsis.conf.json')
-  if ($LASTEXITCODE -ne 0) { throw "Tauri full NSIS build failed with exit code $LASTEXITCODE" }
+  if ($LASTEXITCODE -ne 0) { throw "Tauri NSIS build failed with exit code $LASTEXITCODE" }
 
   $setupExe = Get-ChildItem -Path $nsisDir -Filter "*$version*setup.exe" | Select-Object -First 1
   if (-not $setupExe) {
     $setupExe = Get-ChildItem -Path $nsisDir -Filter '*setup.exe' | Select-Object -First 1
   }
-  if (-not $setupExe) { throw "Full NSIS installer was not found in $nsisDir" }
+  if (-not $setupExe) { throw "NSIS installer was not found in $nsisDir" }
 
-  $fullInstallerExe = Join-Path $outputDirFullPath "Rupelian-Player-Setup-v$version.exe"
-  Move-Item -LiteralPath $setupExe.FullName -Destination $fullInstallerExe -Force
-  $fullHash = (Get-FileHash -LiteralPath $fullInstallerExe -Algorithm SHA256).Hash
-  Set-Content -LiteralPath "$fullInstallerExe.sha256.txt" -Value $fullHash -Encoding utf8
-  $fullSize = (Get-Item $fullInstallerExe).Length
-
-  # 2. Build Lightweight Fast Patch Installer
-  Write-Host "Building Lightweight Fast Patch Installer v$version..."
-  Remove-Item -Path "$nsisDir/*" -Recurse -Force -ErrorAction SilentlyContinue
-  & npx tauri build --bundles nsis -c (Join-Path $srcTauri 'tauri.patch.conf.json')
-  if ($LASTEXITCODE -ne 0) { throw "Tauri patch NSIS build failed with exit code $LASTEXITCODE" }
-
-  $patchExe = Get-ChildItem -Path $nsisDir -Filter "*$version*setup.exe" | Select-Object -First 1
-  if (-not $patchExe) {
-    $patchExe = Get-ChildItem -Path $nsisDir -Filter '*setup.exe' | Select-Object -First 1
-  }
-  if (-not $patchExe) { throw "Patch NSIS installer was not found in $nsisDir" }
-
-  $fastPatchExe = Join-Path $outputDirFullPath "Rupelian-Player-Update-v$version.exe"
-  Move-Item -LiteralPath $patchExe.FullName -Destination $fastPatchExe -Force
-  $patchHash = (Get-FileHash -LiteralPath $fastPatchExe -Algorithm SHA256).Hash
-  Set-Content -LiteralPath "$fastPatchExe.sha256.txt" -Value $patchHash -Encoding utf8
-  $patchSize = (Get-Item $fastPatchExe).Length
+  # Permanent naming rule: no 'setup', 'installer', 'update', or suffixes — simply Rupelian.exe
+  $destinationExe = Join-Path $outputDirFullPath "Rupelian.exe"
+  Move-Item -LiteralPath $setupExe.FullName -Destination $destinationExe -Force
+  $hash = (Get-FileHash -LiteralPath $destinationExe -Algorithm SHA256).Hash
+  Set-Content -LiteralPath "$destinationExe.sha256.txt" -Value $hash -Encoding utf8
+  $size = (Get-Item $destinationExe).Length
 
 } finally {
   # Clean up staging DLLs from src-tauri
@@ -78,25 +61,22 @@ try {
   Remove-Item -LiteralPath (Join-Path $srcTauri 'vulkan-1.dll') -Force -ErrorAction SilentlyContinue
 }
 
-# Update version.json with actual hashes and sizes
+# Update version.json with actual hash and size
 $manifestPath = Join-Path $repo 'version.json'
 if (Test-Path $manifestPath) {
   $manifest = Get-Content -LiteralPath $manifestPath | ConvertFrom-Json
   $manifest.version = $version
   $manifest.name = "Rupelian Player v$version"
-  $manifest.packages.'windows-x64-patch'.sha256 = $patchHash
-  $manifest.packages.'windows-x64-patch'.size = $patchSize
-  $manifest.packages.'windows-x64-installer'.sha256 = $fullHash
-  $manifest.packages.'windows-x64-installer'.size = $fullSize
+  $manifest.packages.'windows-x64'.url = "https://github.com/hamides-dev/rupelian/releases/download/v$version/Rupelian.exe"
+  $manifest.packages.'windows-x64'.sha256 = $hash
+  $manifest.packages.'windows-x64'.size = $size
+  $manifest.packages.'windows-x64'.description = "Rupelian Player Windows Installer"
   $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding utf8
 }
 
 [PSCustomObject]@{
   Version = $version
-  FullInstaller = $fullInstallerExe
-  FullSizeMB = [math]::Round($fullSize / 1MB, 2)
-  FullSHA256 = $fullHash
-  PatchInstaller = $fastPatchExe
-  PatchSizeMB = [math]::Round($patchSize / 1MB, 2)
-  PatchSHA256 = $patchHash
+  Installer = $destinationExe
+  SizeMB = [math]::Round($size / 1MB, 2)
+  SHA256 = $hash
 }

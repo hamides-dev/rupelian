@@ -6056,7 +6056,7 @@ function initAppUpdater() {
         if (modalVersion) modalVersion.textContent = `v${info.latestVersion}`;
         if (modalSize) {
           const mb = (info.packageSize / (1024 * 1024)).toFixed(1);
-          modalSize.textContent = info.isPatch ? `Fast Patch (~${mb} MB)` : `Full Setup (~${mb} MB)`;
+          modalSize.textContent = `${mb} MB`;
         }
         if (modalNotes) modalNotes.textContent = info.notes || "Performance and stability improvements.";
 

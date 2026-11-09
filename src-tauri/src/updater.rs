@@ -113,18 +113,13 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
     let manifest = query_manifest(MANIFEST_URL).await?;
     let has_update = is_newer_version(&manifest.version, CURRENT_VERSION);
 
-    // Prefer lightweight fast patch if present, fallback to full installer
-    let (pkg_url, pkg_sha256, pkg_size, is_patch) = if let Some(patch) =
-        manifest.packages.get("windows-x64-patch")
+    // Find the Windows installer package
+    let (pkg_url, pkg_sha256, pkg_size, is_patch) = if let Some(pkg) = manifest
+        .packages
+        .get("windows-x64")
+        .or_else(|| manifest.packages.get("windows-x64-installer"))
     {
-        (patch.url.clone(), patch.sha256.clone(), patch.size, true)
-    } else if let Some(installer) = manifest.packages.get("windows-x64-installer") {
-        (
-            installer.url.clone(),
-            installer.sha256.clone(),
-            installer.size,
-            false,
-        )
+        (pkg.url.clone(), pkg.sha256.clone(), pkg.size, false)
     } else {
         (String::new(), String::new(), 0, false)
     };
