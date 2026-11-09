@@ -13,6 +13,7 @@
     "check": "npm run test && npm run build && npm run check:repo",
     "cargo:test": "node scripts/cargo-with-runtime.mjs test --manifest-path src-tauri/Cargo.toml --lib",
     "setup:media": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-media.ps1",
+    "package:installer": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-installer.ps1",
     "check:media": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-media.ps1 -Check",
     "prepare": "node scripts/install-git-hooks.mjs"
   },
