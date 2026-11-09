@@ -2,19 +2,13 @@
   "version": "0.1.1",
   "name": "Rupelian Player v0.1.1",
   "pub_date": "2026-11-09T09:30:00Z",
-  "notes": "• Fixes timeline preview thumbnail caching: preview frames are now automatically purged when closing or changing videos, on app exit, and on player startup.\n• Adds Close video button in top header and Ctrl+W keyboard shortcut.\n• Adds built-in Software Updater with auto-check on startup and manual check in Settings.\n• Supports lightweight Fast Patch update (~3.5 MB) alongside Full Setup Installer (~135 MB).",
+  "notes": "• Fixes timeline preview thumbnail caching: preview frames are now automatically purged when closing or changing videos, on app exit, and on player startup.\n• Adds Close video button in top header and Ctrl+W keyboard shortcut.\n• Adds built-in Software Updater with auto-check on startup and manual check in Settings.",
   "packages": {
-    "windows-x64-patch": {
-      "url": "https://github.com/hamides-dev/rupelian/releases/download/v0.1.1/Rupelian-Player-Update-v0.1.1.exe",
-      "sha256": "86AA425DCB75186E150FC60E3FABBADBD579F3580D313046C4618C42C50C24AD",
-      "size": 3608245,
-      "description": "Lightweight Fast Patch (~3.5 MB)"
-    },
-    "windows-x64-installer": {
-      "url": "https://github.com/hamides-dev/rupelian/releases/download/v0.1.1/Rupelian-Player-Setup-v0.1.1.exe",
+    "windows-x64": {
+      "url": "https://github.com/hamides-dev/rupelian/releases/download/v0.1.1/Rupelian.exe",
       "sha256": "B0F5B1F025F66B098991AF0E0BE65C182F68B98CB121104AA8EAF3870A011C69",
       "size": 140006193,
-      "description": "Full Setup Installer (~135 MB)"
+      "description": "Rupelian Player Windows Installer"
     }
   }
 }
