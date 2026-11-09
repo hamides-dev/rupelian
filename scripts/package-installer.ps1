@@ -24,6 +24,11 @@ New-Item -ItemType Directory -Path $outputDirFullPath -Force | Out-Null
 
 $nsisDir = Join-Path $targetRelease 'bundle/nsis'
 
+# Build release binaries (EXE + DLL)
+Write-Host "Building release binaries (EXE + DLL)..."
+& node (Join-Path $repo 'scripts/cargo-with-runtime.mjs') build --release --manifest-path (Join-Path $srcTauri 'Cargo.toml')
+if ($LASTEXITCODE -ne 0) { throw "Rust release build failed with exit code $LASTEXITCODE" }
+
 # Stage DLLs for bundling
 Copy-Item -LiteralPath (Join-Path $cargoTargetRelease 'rupelian_lib.dll') -Destination (Join-Path $srcTauri 'rupelian_lib.dll') -Force
 Copy-Item -LiteralPath (Join-Path $runtimeDir 'vcruntime140.dll') -Destination (Join-Path $srcTauri 'vcruntime140.dll') -Force
