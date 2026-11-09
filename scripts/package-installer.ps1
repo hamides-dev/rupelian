@@ -37,10 +37,14 @@ Copy-Item -LiteralPath (Join-Path $runtimeDir 'vulkan-1.dll') -Destination (Join
 try {
   # 1. Build Full Standalone Installer
   Write-Host "Building Full Standalone Setup Installer v$version..."
+  Remove-Item -Path "$nsisDir/*" -Recurse -Force -ErrorAction SilentlyContinue
   & npx tauri build --bundles nsis -c (Join-Path $srcTauri 'tauri.nsis.conf.json')
   if ($LASTEXITCODE -ne 0) { throw "Tauri full NSIS build failed with exit code $LASTEXITCODE" }
 
-  $setupExe = Get-ChildItem -Path $nsisDir -Filter '*setup.exe' | Select-Object -First 1
+  $setupExe = Get-ChildItem -Path $nsisDir -Filter "*$version*setup.exe" | Select-Object -First 1
+  if (-not $setupExe) {
+    $setupExe = Get-ChildItem -Path $nsisDir -Filter '*setup.exe' | Select-Object -First 1
+  }
   if (-not $setupExe) { throw "Full NSIS installer was not found in $nsisDir" }
 
   $fullInstallerExe = Join-Path $outputDirFullPath "Rupelian-Player-Setup-v$version.exe"
@@ -51,10 +55,14 @@ try {
 
   # 2. Build Lightweight Fast Patch Installer
   Write-Host "Building Lightweight Fast Patch Installer v$version..."
+  Remove-Item -Path "$nsisDir/*" -Recurse -Force -ErrorAction SilentlyContinue
   & npx tauri build --bundles nsis -c (Join-Path $srcTauri 'tauri.patch.conf.json')
   if ($LASTEXITCODE -ne 0) { throw "Tauri patch NSIS build failed with exit code $LASTEXITCODE" }
 
-  $patchExe = Get-ChildItem -Path $nsisDir -Filter '*setup.exe' | Select-Object -First 1
+  $patchExe = Get-ChildItem -Path $nsisDir -Filter "*$version*setup.exe" | Select-Object -First 1
+  if (-not $patchExe) {
+    $patchExe = Get-ChildItem -Path $nsisDir -Filter '*setup.exe' | Select-Object -First 1
+  }
   if (-not $patchExe) { throw "Patch NSIS installer was not found in $nsisDir" }
 
   $fastPatchExe = Join-Path $outputDirFullPath "Rupelian-Player-Update-v$version.exe"
