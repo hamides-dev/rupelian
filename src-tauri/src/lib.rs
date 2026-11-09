@@ -10,6 +10,7 @@ mod youtube_proxy;
 mod youtube_session;
 mod youtube_browser_link;
 mod player_window;
+mod updater;
 
 use serde::{Deserialize, Serialize};
 use bootstrap_protocol::BootstrapInfo;
@@ -447,6 +448,8 @@ fn run_with_bootstrap(bootstrap: BootstrapInfo) {
     }));
     builder
         .setup(|app| {
+            let handle = app.handle();
+            let _ = local_media::clear_timeline_previews_inner(&handle);
             let timing = app.state::<StartupTiming>();
             *timing.window_created_ms.lock().unwrap_or_else(|p| p.into_inner()) =
                 Some(timing.elapsed_ms());
@@ -481,7 +484,10 @@ fn run_with_bootstrap(bootstrap: BootstrapInfo) {
             local_media::discover_embedded_subtitles,
             local_media::load_embedded_subtitle,
             local_media::prepare_local_preview,
+            local_media::clear_timeline_previews,
             local_media::prepare_native_end_frame_path,
+            updater::check_for_updates,
+            updater::download_and_apply_update,
             youtube::resolve_youtube,
             youtube::load_youtube_subtitles,
             youtube::open_youtube_sign_in,
