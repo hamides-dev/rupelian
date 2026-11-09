@@ -24,7 +24,12 @@ New-Item -ItemType Directory -Path $outputDirFullPath -Force | Out-Null
 
 $nsisDir = Join-Path $targetRelease 'bundle/nsis'
 
-# Build release binaries (EXE + DLL)
+# 1. Build frontend distribution assets
+Write-Host "Building frontend assets..."
+& npm run build
+if ($LASTEXITCODE -ne 0) { throw "Frontend build failed with exit code $LASTEXITCODE" }
+
+# 2. Build release binaries (EXE + DLL) with custom-protocol enabled by default
 Write-Host "Building release binaries (EXE + DLL)..."
 & node (Join-Path $repo 'scripts/cargo-with-runtime.mjs') build --release --manifest-path (Join-Path $srcTauri 'Cargo.toml')
 if ($LASTEXITCODE -ne 0) { throw "Rust release build failed with exit code $LASTEXITCODE" }
@@ -47,8 +52,8 @@ try {
   }
   if (-not $setupExe) { throw "NSIS installer was not found in $nsisDir" }
 
-  # Permanent naming rule: no 'setup', 'installer', 'update', or suffixes — simply Rupelian.exe
-  $destinationExe = Join-Path $outputDirFullPath "Rupelian.exe"
+  # Permanent naming rule: strictly Rupelian-Player.exe (no 'setup', 'installer', 'update', or suffixes)
+  $destinationExe = Join-Path $outputDirFullPath "Rupelian-Player.exe"
   Move-Item -LiteralPath $setupExe.FullName -Destination $destinationExe -Force
   $hash = (Get-FileHash -LiteralPath $destinationExe -Algorithm SHA256).Hash
   Set-Content -LiteralPath "$destinationExe.sha256.txt" -Value $hash -Encoding utf8
@@ -67,7 +72,7 @@ if (Test-Path $manifestPath) {
   $manifest = Get-Content -LiteralPath $manifestPath | ConvertFrom-Json
   $manifest.version = $version
   $manifest.name = "Rupelian Player v$version"
-  $manifest.packages.'windows-x64'.url = "https://github.com/hamides-dev/rupelian/releases/download/v$version/Rupelian.exe"
+  $manifest.packages.'windows-x64'.url = "https://github.com/hamides-dev/rupelian/releases/download/v$version/Rupelian-Player.exe"
   $manifest.packages.'windows-x64'.sha256 = $hash
   $manifest.packages.'windows-x64'.size = $size
   $manifest.packages.'windows-x64'.description = "Rupelian Player Windows Installer"

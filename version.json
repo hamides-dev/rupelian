@@ -5,9 +5,9 @@
   "notes": "• Fixes timeline preview thumbnail caching: preview frames are now automatically purged when closing or changing videos, on app exit, and on player startup.\n• Adds Close video button in top header and Ctrl+W keyboard shortcut.\n• Adds built-in Software Updater with auto-check on startup and manual check in Settings.",
   "packages": {
     "windows-x64": {
-      "url": "https://github.com/hamides-dev/rupelian/releases/download/v0.1.1/Rupelian.exe",
-      "sha256": "B0F5B1F025F66B098991AF0E0BE65C182F68B98CB121104AA8EAF3870A011C69",
-      "size": 140006193,
+      "url": "https://github.com/hamides-dev/rupelian/releases/download/v0.1.1/Rupelian-Player.exe",
+      "sha256": "153315CB8BA4CDB9F443C57D9FC3E54802B4EE08B230CE5643C7024A4DB8AD28",
+      "size": 141255770,
       "description": "Rupelian Player Windows Installer"
     }
   }
