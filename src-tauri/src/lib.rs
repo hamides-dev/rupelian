@@ -448,8 +448,10 @@ fn run_with_bootstrap(bootstrap: BootstrapInfo) {
     }));
     builder
         .setup(|app| {
-            let handle = app.handle();
-            let _ = local_media::clear_timeline_previews_inner(&handle);
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let _ = local_media::clear_timeline_previews_inner(&handle);
+            });
             let timing = app.state::<StartupTiming>();
             *timing.window_created_ms.lock().unwrap_or_else(|p| p.into_inner()) =
                 Some(timing.elapsed_ms());
