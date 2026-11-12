@@ -71,8 +71,8 @@ unsafe fn paint(window: HWND, surface: &mut Surface) {
     DeleteObject(border_pen);
     DeleteObject(badge_brush);
     text(dc, surface.heading_font, "R", rect(cx-s(26), cy-s(56), cx+s(26), cy-s(6)), 0x003b3bff, DT_CENTER);
-    text(dc, surface.heading_font, "RUPELIAN", rect(cx-s(160), cy, cx+s(160), cy+s(25)), 0x00ffffff, DT_CENTER);
-    let status = if surface.started.elapsed().as_secs() < 20 { "Loading your player…" } else { "Taking longer than expected. Press Alt+F4 to close and retry." };
+    text(dc, surface.heading_font, "RUPELIAN PLAYER", rect(cx-s(180), cy, cx+s(180), cy+s(25)), 0x00ffffff, DT_CENTER);
+    let status = if surface.started.elapsed().as_secs() < 20 { "Starting Rupelian Player…" } else { "Taking longer than expected. Press Alt+F4 to close and retry." };
     text(dc, surface.font, status, rect(cx-s(250), cy+s(32), cx+s(250), cy+s(57)), 0x00a29b9b, DT_CENTER);
     fill(dc, rect(cx-s(155), cy+s(78), cx+s(155), cy+s(81)), 0x00292929);
     let offset = s(surface.phase % 230);

@@ -2,7 +2,7 @@
 
 > **Mandatory living-document rule:** Every agent working in this repository must read this file before making changes. Before handing work back, the agent must update this file whenever the task changes the product goal, architecture, dependencies, important behavior, build/release process, test process, known limitations, or current implementation status. Agents must also verify that this document is still accurate after every task. Do not create meaningless edits when nothing documented here changed.
 
-Last reviewed: 2026-11-09
+Last reviewed: 2026-11-12
 
 ## Mandatory GitHub Workflow
 
@@ -71,6 +71,7 @@ The previous Python implementation is available for behavioral reference at:
 - Desktop file opening: startup file arguments are consumed by the frontend, and the Tauri single-instance plugin forwards later file-open requests to the existing window. Bundle metadata declares the supported video file associations; installed users have automatic Windows `Open with` and Default App integration, while portable users can select the EXE manually.
 - Timeline preview cache: frame thumbnails are generated on demand via FFmpeg into `app_cache_dir/timeline-previews`. Previews are bounded during playback (max 60 frames) and automatically purged on media close (`Ctrl+W`), media switch, app exit, and player startup.
 - In-app software updater: queries `version.json` in the canonical repository, supports silent auto-check on startup and manual check in Settings, displays download progress with streaming SHA256 integrity verification, and executes the updated `Rupelian.exe`.
+- Startup and playback latency: the animated HTML loading screen (`#startup-shell`) is presented immediately on first paint of the WebView and smoothly faded out, replacing early GDI loaders without flashing. Video readiness checking queries output configuration in a single parallel batch rather than sequential track loops, immediately presents frames upon `video-params/w` detection, and defers auxiliary audio track parsing so media starts playback instantly.
 
 ### Important Files
 

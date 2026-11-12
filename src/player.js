@@ -18,7 +18,7 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const buttonByTitle = (title) => $$('button').find((button) => button.title === title);
 const buttonByText = (text, root = document) => $$('button', root).find((button) => button.textContent.replace(/\s+/g, " ").trim().includes(text));
-const APP_VERSION = "0.1.1";
+const APP_VERSION = "0.1.2";
 const startupStatus = document.querySelector("#startup-status");
 const startupLifecycle = {
   startedAt: Number(window.__LINGO_BOOT_STARTED_AT__) || performance.now(),
@@ -31,6 +31,19 @@ const startupLifecycle = {
   nativePlayerReadyAt: null
 };
 window.__LINGO_STARTUP__ = startupLifecycle;
+
+async function ensureStartupWindowShown() {
+  if (!window.__TAURI_INTERNALS__ || startupLifecycle.nativeWindowShownAt) return;
+  try {
+    startupLifecycle.nativeStartup = await invoke("complete_startup_window");
+    startupLifecycle.nativeWindowShownAt = performance.now();
+    document.body.dataset.nativeWindowShown = "true";
+  } catch (error) {
+    document.body.dataset.nativeWindowShown = "error";
+    console.warn("The native startup window could not be revealed", error);
+  }
+}
+ensureStartupWindowShown();
 
 if (startupStatus) startupStatus.textContent = "Preparing controls…";
 const localVideoPattern = /\.(mp4|m4v|webm|mov|mkv|avi|wmv|flv|mpeg|mpg|m2ts|ts|vob|ogv|3gp|3g2|asf)$/i;
@@ -699,27 +712,35 @@ async function readNativeMediaProperties() {
 }
 
 async function readNativeVideoOutputStatus() {
-  const count = Number(await getMpvProperty("track-list/count", "int64").catch(() => 0)) || 0;
-  let hasVideoTrack = false;
-  let selectedVideoTrack = false;
-  for (let index = 0; index < count; index += 1) {
-    const prefix = `track-list/${index}`;
-    const type = await getMpvProperty(`${prefix}/type`, "string").catch(() => null);
-    if (type !== "video") continue;
-    hasVideoTrack = true;
-    if (await getMpvProperty(`${prefix}/selected`, "flag").catch(() => false)) selectedVideoTrack = true;
-  }
   const [configured, vid, width, height] = await Promise.all([
     getMpvProperty("vo-configured", "flag").catch(() => false),
     getMpvProperty("vid", "string").catch(() => "no"),
     getMpvProperty("video-params/w", "int64").catch(() => 0),
     getMpvProperty("video-params/h", "int64").catch(() => 0)
   ]);
+  const w = Number(width) || 0;
+  const h = Number(height) || 0;
+  const hasSelectedVideo = vid != null && vid !== "no" && w > 0 && h > 0;
+  if (hasSelectedVideo && Boolean(configured)) {
+    return {
+      hasVideoTrack: true,
+      healthy: true,
+      width: w,
+      height: h
+    };
+  }
+  const count = Number(await getMpvProperty("track-list/count", "int64").catch(() => 0)) || 0;
+  let hasVideoTrack = false;
+  if (count > 0) {
+    const indices = Array.from({ length: count }, (_, i) => i);
+    const types = await Promise.all(indices.map((i) => getMpvProperty(`track-list/${i}/type`, "string").catch(() => null)));
+    hasVideoTrack = types.some((t) => t === "video");
+  }
   return {
     hasVideoTrack,
-    healthy: hasVideoTrack && selectedVideoTrack && Boolean(configured) && vid !== "no" && Number(width) > 0 && Number(height) > 0,
-    width: Number(width) || 0,
-    height: Number(height) || 0
+    healthy: hasSelectedVideo && Boolean(configured),
+    width: w,
+    height: h
   };
 }
 
@@ -871,7 +892,7 @@ async function recoverNativeRenderer() {
   return nativeRendererRecovery;
 }
 
-async function confirmNativeVideoOutput(epoch, now, { attempts = 5 } = {}) {
+async function confirmNativeVideoOutput(epoch, now, { attempts = 12, interval = 25 } = {}) {
   let status = { hasVideoTrack: false, healthy: false, width: 0, height: 0 };
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (epoch !== nativeOutputEpoch || !isNativePlayback()) return;
@@ -882,7 +903,7 @@ async function confirmNativeVideoOutput(epoch, now, { attempts = 5 } = {}) {
       finishNativePlaybackRestart(now);
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, interval));
   }
   if (epoch !== nativeOutputEpoch || !isNativePlayback()) return;
   document.body.classList.remove("lp-native-video-visible");
@@ -942,8 +963,20 @@ function handleMpvProperty(name, data) {
     case "volume": state.nativePlayback.volume = Math.max(0, Math.min(1, (Number(data) || 0) / 100)); break;
     case "mute": state.nativePlayback.muted = Boolean(data); break;
     case "speed": state.nativePlayback.playbackRate = Number(data) || 1; break;
-    case "video-params/w": state.nativePlayback.width = Number(data) || 0; refreshNativeLocalMetadata(); break;
-    case "video-params/h": state.nativePlayback.height = Number(data) || 0; refreshNativeLocalMetadata(); break;
+    case "video-params/w":
+      state.nativePlayback.width = Number(data) || 0;
+      refreshNativeLocalMetadata();
+      if (state.nativePlayback.width > 0 && state.nativePlayback.height > 0 && !document.body.classList.contains("lp-native-video-visible")) {
+        finishNativePlaybackRestart(performance.now());
+      }
+      break;
+    case "video-params/h":
+      state.nativePlayback.height = Number(data) || 0;
+      refreshNativeLocalMetadata();
+      if (state.nativePlayback.width > 0 && state.nativePlayback.height > 0 && !document.body.classList.contains("lp-native-video-visible")) {
+        finishNativePlaybackRestart(performance.now());
+      }
+      break;
     case "seeking": state.nativePlayback.seeking = Boolean(data); break;
     case "paused-for-cache": {
       const wasBuffering = state.nativePlayback.pausedForCache;
@@ -991,7 +1024,7 @@ function handleMpvEvent(event) {
   if (event.event === "file-loaded") {
     state.nativePlayback.fileLoaded = true;
     readNativeMediaProperties();
-    readNativeAudioTracks();
+    setTimeout(readNativeAudioTracks, 60);
     if (isNativeYoutubePlayback()) {
       showLoadedMediaControls();
       renderQualityInfo();
@@ -1856,32 +1889,37 @@ async function applyPreferredAudioTrack() {
 async function readNativeAudioTracks() {
   if (!isNativeLocalPlayback()) return;
   try {
-    const count = Number(await getMpvProperty("track-list/count", "int64")) || 0;
-    const tracks = [];
-    for (let index = 0; index < count; index += 1) {
-      const prefix = `track-list/${index}`;
-      const type = await getMpvProperty(`${prefix}/type`, "string").catch(() => null);
-      if (type !== "audio") continue;
-      const [mpvId, title, language, codec, channels, isDefault, selected] = await Promise.all([
-        getMpvProperty(`${prefix}/id`, "int64").catch(() => index),
-        getMpvProperty(`${prefix}/title`, "string").catch(() => null),
-        getMpvProperty(`${prefix}/lang`, "string").catch(() => null),
-        getMpvProperty(`${prefix}/codec`, "string").catch(() => null),
-        getMpvProperty(`${prefix}/demux-channel-count`, "int64").catch(() => null),
-        getMpvProperty(`${prefix}/default`, "flag").catch(() => false),
-        getMpvProperty(`${prefix}/selected`, "flag").catch(() => false)
-      ]);
-      tracks.push({
-        id: String(mpvId ?? index),
-        mpvId: mpvId ?? index,
-        label: title || language || `Audio ${tracks.length + 1}`,
-        language: language || "und",
-        details: [codec, channels ? `${channels} ch` : ""].filter(Boolean).join(" · "),
-        isDefault: Boolean(isDefault),
-        isOriginal: false,
-        selected: Boolean(selected)
-      });
-    }
+    const count = Number(await getMpvProperty("track-list/count", "int64").catch(() => 0)) || 0;
+    if (count <= 0) return;
+    const indices = Array.from({ length: count }, (_, i) => i);
+    const types = await Promise.all(
+      indices.map((i) => getMpvProperty(`track-list/${i}/type`, "string").catch(() => null))
+    );
+    const audioIndices = indices.filter((i) => types[i] === "audio");
+    const tracks = await Promise.all(
+      audioIndices.map(async (index) => {
+        const prefix = `track-list/${index}`;
+        const [mpvId, title, language, codec, channels, isDefault, selected] = await Promise.all([
+          getMpvProperty(`${prefix}/id`, "int64").catch(() => index),
+          getMpvProperty(`${prefix}/title`, "string").catch(() => null),
+          getMpvProperty(`${prefix}/lang`, "string").catch(() => null),
+          getMpvProperty(`${prefix}/codec`, "string").catch(() => null),
+          getMpvProperty(`${prefix}/demux-channel-count`, "int64").catch(() => null),
+          getMpvProperty(`${prefix}/default`, "flag").catch(() => false),
+          getMpvProperty(`${prefix}/selected`, "flag").catch(() => false)
+        ]);
+        return {
+          id: String(mpvId ?? index),
+          mpvId: mpvId ?? index,
+          label: title || language || `Audio ${index + 1}`,
+          language: language || "und",
+          details: [codec, channels ? `${channels} ch` : ""].filter(Boolean).join(" · "),
+          isDefault: Boolean(isDefault),
+          isOriginal: false,
+          selected: Boolean(selected)
+        };
+      })
+    );
     if (!isNativeLocalPlayback()) return;
     const selected = setAudioTracks(tracks, "local");
     if (selected && !selected.selected) {
@@ -6171,36 +6209,32 @@ function startDeferredCapabilities() {
       startupLifecycle.nativePlayerReadyAt = performance.now();
       document.body.dataset.nativePlayerReady = String(state.nativePlayback.available);
     });
-    persistenceTask.finally(() => {
-      invoke("take_startup_media_paths")
-        .then((paths) => {
-          if (Array.isArray(paths) && paths.length) enqueueExternalMediaPaths(paths);
-        })
-        .catch((error) => notify(`Startup file could not be opened: ${error}`));
-    });
+    invoke("take_startup_media_paths")
+      .then((paths) => {
+        if (Array.isArray(paths) && paths.length) enqueueExternalMediaPaths(paths);
+      })
+      .catch((error) => notify(`Startup file could not be opened: ${error}`));
   }
 }
 
 function revealPlayerShell() {
-  if (startupStatus) startupStatus.textContent = "Player ready";
-  requestAnimationFrame(() => requestAnimationFrame(async () => {
-    startupLifecycle.shellReadyAt = performance.now();
-    document.body.classList.remove("lp-starting");
-    document.body.classList.add("lp-shell-ready");
-    document.body.dataset.shellReady = "true";
-    if (window.__TAURI_INTERNALS__) {
-      try {
-        startupLifecycle.nativeStartup = await invoke("complete_startup_window");
-        startupLifecycle.nativeWindowShownAt = performance.now();
-        document.body.dataset.nativeWindowShown = "true";
-      } catch (error) {
-        document.body.dataset.nativeWindowShown = "error";
-        console.warn("The native startup window could not be revealed", error);
-      }
-    }
-    document.querySelector("#startup-shell")?.remove();
-    setTimeout(startDeferredCapabilities, 0);
-  }));
+  const elapsed = performance.now() - startupLifecycle.scriptStartedAt;
+  const minimumDisplayMs = 500;
+  const remaining = Math.max(0, minimumDisplayMs - elapsed);
+  setTimeout(() => {
+    if (startupStatus) startupStatus.textContent = "Player ready";
+    requestAnimationFrame(() => requestAnimationFrame(async () => {
+      startupLifecycle.shellReadyAt = performance.now();
+      document.body.classList.remove("lp-starting");
+      document.body.classList.add("lp-shell-ready");
+      document.body.dataset.shellReady = "true";
+      await ensureStartupWindowShown();
+      setTimeout(() => {
+        document.querySelector("#startup-shell")?.remove();
+      }, 260);
+      setTimeout(startDeferredCapabilities, 0);
+    }));
+  }, remaining);
 }
 
 if (window.__TAURI_INTERNALS__) {

@@ -1,13 +1,13 @@
-{
-  "version": "0.1.1",
-  "name": "Rupelian Player v0.1.1",
-  "pub_date": "2026-11-09T09:30:00Z",
-  "notes": "• Fixes timeline preview thumbnail caching: preview frames are now automatically purged when closing or changing videos, on app exit, and on player startup.\n• Adds Close video button in top header and Ctrl+W keyboard shortcut.\n• Adds built-in Software Updater with auto-check on startup and manual check in Settings.",
+﻿{
+  "version": "0.1.2",
+  "name": "Rupelian Player v0.1.2",
+  "pub_date": "2026-11-12T09:00:00Z",
+  "notes": "- Fixes startup loading screen: seamlessly displays the animated loading screen immediately upon launch with smooth fade-out.\n- Optimizes video inspection and playback startup: eliminates sequential IPC polling loops and displays video frames instantaneously.\n- Enforces official Rupelian Player branding across all windows and packaging.",
   "packages": {
     "windows-x64": {
-      "url": "https://github.com/hamides-dev/rupelian/releases/download/v0.1.1/Rupelian-Player.exe",
-      "sha256": "153315CB8BA4CDB9F443C57D9FC3E54802B4EE08B230CE5643C7024A4DB8AD28",
-      "size": 141255770,
+      "url": "https://github.com/hamides-dev/rupelian/releases/download/v0.1.2/Rupelian-Player.exe",
+      "sha256": "A461148867FE5517915794D72E5FD6CED522A852D9EC1BF14D4EBBBDF2F41315",
+      "size": 141266060,
       "description": "Rupelian Player Windows Installer"
     }
   }

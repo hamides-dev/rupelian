@@ -1,6 +1,6 @@
 [package]
 name = "rupelian"
-version = "0.1.1"
+version = "0.1.2"
 description = "A cinematic language-learning video player"
 authors = ["hamides-dev"]
 edition = "2021"
